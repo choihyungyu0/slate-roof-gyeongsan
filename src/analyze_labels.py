@@ -4,6 +4,7 @@
       data/labels/sample_key.csv (표본 열쇠), data/labels/sample_model_proba.csv (1단계 모델 확률)
 판독 CSV가 없으면 설계와 대기 상태만 적은 보고서를 쓴다.
 """
+import json
 import math
 import sys
 from pathlib import Path
@@ -54,7 +55,7 @@ proba_f = KEYDIR / "sample_model_proba.csv"
 proba = pd.read_csv(proba_f) if proba_f.exists() else None
 files = sorted(LAB.glob("labels_*.csv"))
 
-L: list[str] = ["# 지붕 아래 사람 — 1.5단계 사람 판독 표본검증", ""]
+L: list[str] = ["# 지붕 아래 사람 — 1.5단계 판독 표본검증", ""]
 L += ["## 표본 설계", "",
       f"- 대상: 자인면·하양읍의 주택 중 건물 폴리곤과 연결되고 도형 면적 20㎡ 이상인 것",
       f"- 층화 무작위 추출: 읍면 2곳 × 대장 지붕(슬레이트/비슬레이트) = 4개 층에서 각 75동, 합계 {len(key)}동 (난수 시드 20261005, 목록 `data/labels/sample_key.csv`)",
@@ -81,6 +82,8 @@ for f in files:
         g = g.sort_values("timestamp").drop_duplicates("id", keep="last")
         raters[name] = pd.concat([raters[name], g]).drop_duplicates("id", keep="last") if name in raters else g
 names = sorted(raters)
+notes_f = KEYDIR / "rater_notes.json"
+NOTES = json.loads(notes_f.read_text(encoding="utf-8")) if notes_f.exists() else {}
 
 
 def block(title: str, m: pd.DataFrame) -> list[str]:
@@ -123,7 +126,10 @@ def block(title: str, m: pd.DataFrame) -> list[str]:
 L += ["## 결과", "", f"판독자 {len(names)}명: " + ", ".join(f"{n}({len(raters[n])}건)" for n in names), ""]
 merged = {n: key.merge(raters[n][["id", "verdict"]], on="id") for n in names}
 for n in names:
-    L += block(f"판독자 {n}", merged[n])
+    b_ = block(f"판독자 {n}", merged[n])
+    if n in NOTES:
+        b_[2:2] = [f"> **판독자 주석**: {NOTES[n]}", ""]
+    L += b_
 
 L += ["## 판독자 간 일치도", ""]
 if len(names) < 2:
@@ -147,6 +153,7 @@ else:
 L += ["## 한계", "",
       f"- **표본이 작음**: 층당 75동, 합계 {len(key)}동. 신뢰구간이 넓으며(표 참조) 읍면별 수치는 더 불안정함.",
       "- 표본은 자인면·하양읍 두 곳뿐이며 층별 동수 추출이라, 합친 비율은 두 읍면의 실제 주택 수 비중을 반영한 가중 추정이 아님. 경산시 전체로 일반화할 수 없음.",
+      "- 판독자가 모두 AI이면 이 결과는 사람 판독 검증이 아님. 사람 판독자 CSV를 추가해 일치도를 확인해야 함." if all("(AI)" in n for n in names) else "- 판독자 구성: " + ", ".join(names),
       "- 정답은 현장 조사가 아니라 0.24m급 항공영상 육안 판독임. 도색·덧씌움 슬레이트는 영상으로 구분되지 않을 수 있고, 영상 촬영 시점(미확인)과 대장 조회 시점(2026-10-05)이 다름.",
       "- 표본은 건물 도형과 연결된 주택에서만 뽑았으므로 대장-도형 불일치 건물과 미등재 건축물은 포함되지 않음.",
       "- '대장 미갱신 추정률'·'숨은 슬레이트 추정률'은 판독 결과와 대장 기재가 다른 비율을 뜻하며, 원인(개량·철거·기재 오류·동 오배정)은 구분하지 않음.", ""]
