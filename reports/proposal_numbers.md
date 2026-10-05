@@ -72,4 +72,4 @@
 |---|---|
 | `outputs/figs/proposal_fig1.png` | 읍면동별 대장 슬레이트 주택 수 단계구분도 (확실~최대 표기, 흑백 300dpi) |
 | `outputs/figs/proposal_fig2.png` | 대장과 영상이 다른 지붕 예시 3컷 (육안 선정, 현장 미확인). 컬러판 `proposal_fig2_color.png` |
-| `outputs/figs/proposal_fig3_3d.png` | 3D 건물 지도 화면(자인면, 항공영상 배경, 범례 포함, 3200×2000). 색 4종: 슬레이트 단독 / 혼합 / 그 외 주택 / 그 밖. 주소·지번 없음. 컬러 그림임 |
+| `outputs/figs/proposal_fig3_3d.png` | 배포본(https://slate-roof-gyeongsan.vercel.app) 3D 건물 지도 화면. 자인면, 항공영상 배경, 범례 포함, 3200×2000, 2026-10-06 캡처. 범례 숫자는 경산시 전체 중 건물 도형과 연결된 건물 수(슬레이트 단독 2,321 · 혼합 2,323). 주소·지번 없음. 컬러 그림임 |
