@@ -38,7 +38,7 @@ proba_f = KEYDIR / "sample_model_proba.csv"
 proba = pd.read_csv(proba_f) if proba_f.exists() else None
 files = sorted(LAB.glob("labels_*.csv"))
 
-L: list[str] = ["# 지붕 아래 사람 — 1.5단계 판독 표본검증", ""]
+L: list[str] = ["# 온지붕 — 1.5단계 판독 표본검증", ""]
 L += ["## 표본 설계", "",
       f"- 대상: 자인면·하양읍의 주택 중 건물 폴리곤과 연결되고 도형 면적 20㎡ 이상인 것",
       f"- 층화 무작위 추출: 읍면 2곳 × 대장 지붕(슬레이트/비슬레이트) = 4개 층에서 각 75동, 합계 {len(key)}동 (난수 시드 20261005, 목록 `data/labels/sample_key.csv`)",

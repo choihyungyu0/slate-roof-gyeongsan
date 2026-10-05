@@ -180,7 +180,7 @@ export default function MapView() {
         <div className="canvas" ref={el} />
         {!ready && <div className="loading">건물 도형을 불러오는 중…</div>}
         <div className="bar">
-          <div className="brand">지붕 아래 사람<small>경산시 건물 지도</small></div>
+          <div className="brand">온지붕<small>건축물대장 AI 기반 석면 슬레이트 주택 발굴</small></div>
           <select aria-label="읍·면·동으로 이동" defaultValue="" onChange={(e) => flyTo(e.target.value)}>
             <option value="" disabled>읍·면·동으로 이동</option>
             {emds.map((e) => <option key={e.name} value={e.name}>{e.name} · 슬레이트 주택 {e.sure.toLocaleString()}~{e.slate.toLocaleString()}동</option>)}

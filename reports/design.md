@@ -1,4 +1,4 @@
-# 지붕 아래 사람 — 설계 (2026-10-05 방향 정리)
+# 온지붕 — 설계 (2026-10-05 방향 정리)
 
 > 같은 날 방향을 한 번 더 바꿨다: **사람 검수 없이, 정답이 필요 없는 구조로 AI를 배치한다.** 판독 도구(`labeling/`) 제작은 취소했고 만들어 둔 파일은 쓰지 않는다. AI가 매긴 판독·라벨 결과(`reports/stage1_5.md`, `reports/text_classifier.md`)는 검증 근거로 쓰지 않는다. 관련 문서: `roof_normalization.md`(지붕 기재 전수 정규화), `exp_post2010.md`(연식 착시 검사), `change_detection.md`(과거 영상 변화탐지), `priority_score.md`(우선순위 점수).
 
