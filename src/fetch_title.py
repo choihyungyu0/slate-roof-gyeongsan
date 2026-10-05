@@ -31,6 +31,7 @@ FIELDS = [
     "mgmBldrgstPk", "platPlc", "bun", "ji", "sigunguCd", "bjdongCd", "platGbCd",
     "mainPurpsCdNm", "etcPurps", "strctCdNm", "roofCdNm", "etcRoof",
     "useAprDay", "archArea", "grndFlrCnt",
+    "roofCd", "regstrKindCdNm", "mainAtchGbCdNm", "totArea",
 ]
 
 load_dotenv(ROOT / ".env")
@@ -89,7 +90,12 @@ def build_parquet() -> None:
     df = pd.DataFrame(rows)
     keep = [c for c in FIELDS if c in df.columns]
     missing = [c for c in FIELDS if c not in df.columns]
-    df = df[keep].drop_duplicates(subset="mgmBldrgstPk")
+    # PK 등 숫자·문자가 섞여 오는 필드가 있어 면적·층수 외에는 문자열로 통일
+    num = ["archArea", "totArea", "grndFlrCnt"]
+    df = df[keep].copy()
+    for c in df.columns:
+        df[c] = pd.to_numeric(df[c], errors="coerce") if c in num else df[c].map(lambda v: "" if v is None else str(v))
+    df = df.drop_duplicates(subset="mgmBldrgstPk")
     df.to_parquet(OUT, index=False)
     print(f"저장: {OUT}  {len(df):,}행  (응답에 없는 필드: {missing or '없음'})")
 
