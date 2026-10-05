@@ -2,9 +2,10 @@
 
 입력: data/labels/text_to_label.csv (사람이 판정칸을 채운 것. 1=슬레이트 포함, 0=아님, ?=모르겠음)
       data/labels/text_sample_key.csv (같은 문자열에 대한 규칙 판정)
-- 규칙(정규식 SLATE_RE): 사람 판정을 정답으로 precision/recall/F1 — 고유 문자열 기준과 빈도 가중(표제부 건수) 기준
+- 규칙(정규식 SLATE_RE): 라벨 판정을 정답으로 precision/recall/F1 — 고유 문자열 기준과 빈도 가중(표제부 건수) 기준
 - 모델(문자 1~3-gram + 로지스틱 회귀): 같은 300개에서 5-fold 교차검증. 표본이 작아 참고용
 """
+import json
 import sys
 from collections import Counter
 from pathlib import Path
@@ -30,7 +31,7 @@ d["rule"] = d["rule_slate"].astype(int)
 
 L = ["# 자유기재란(etcRoof) 텍스트 분류 검증", "",
      f"- 표본: 경산시 표제부 etcRoof 고유 문자열 중 무작위 {len(d)}개 (시드 20261005). 이 표본이 덮는 표제부는 {d['n'].sum():,}건",
-     "- 정답: 사람이 문자열만 보고 내린 판정(1=슬레이트 포함, 0=아님, ?=모르겠음). 규칙의 판정은 라벨링 파일에 넣지 않음", ""]
+     "- 정답: 문자열만 보고 내린 판정(판정자는 아래 주석 참조)(1=슬레이트 포함, 0=아님, ?=모르겠음). 규칙의 판정은 라벨링 파일에 넣지 않음", ""]
 done = d[d["v"].isin(["0", "1", "?"])]
 if len(done) == 0:
     L += ["**라벨링 대기 중.** `data/labels/text_to_label.csv` 의 판정칸이 비어 있어 결과 수치는 없음.", ""]
@@ -40,6 +41,9 @@ if len(done) == 0:
 
 e = done[done["v"] != "?"].copy()
 e["y"] = e["v"].astype(int)
+nf = ROOT / "data" / "labels" / "rater_notes.json"
+if LAB == ROOT / "data" / "labels" and nf.exists() and "text_labeler" in (notes := json.loads(nf.read_text(encoding="utf-8"))):
+    L += [f"> **판정자 주석**: {notes['text_labeler']}", ""]
 L += [f"판정 {len(done)}/{len(d)}개 (모르겠음 {int((done['v'] == '?').sum())}개는 평가에서 제외)" + ("" if len(done) == len(d) else " — **미완료**"), ""]
 
 
@@ -61,7 +65,7 @@ y, w = e["y"].to_numpy(), e["n"].to_numpy()
 L += ["## 결과", ""] + table("규칙(정규식)", y, e["rule"].to_numpy(), w)
 L += ["빈도 가중 기준의 신뢰구간은 건수를 독립 표본처럼 계산한 것이라 실제보다 좁음(같은 문자열이 반복됨). 고유 문자열 기준을 우선할 것.", ""]
 bad = e[e["rule"] != e["y"]]
-L += [f"규칙과 사람 판정이 다른 문자열 {len(bad)}개:", ""] + ([f"- `{r.etcRoof}` (빈도 {r.n}) — 사람 {r.y}, 규칙 {r.rule}" for r in bad.itertuples()] or ["- 없음"]) + [""]
+L += [f"규칙과 판정이 다른 문자열 {len(bad)}개:", ""] + ([f"- `{r.etcRoof}` (빈도 {r.n}) — 판정 {r.y}, 규칙 {r.rule}" for r in bad.itertuples()] or ["- 없음"]) + [""]
 
 if 5 <= y.sum() <= len(y) - 5:
     grams = [Counter(g for k in (1, 2, 3) for g in (s[i:i + k] for i in range(len(s) - k + 1))) for s in e["etcRoof"]]
@@ -79,7 +83,7 @@ if 5 <= y.sum() <= len(y) - 5:
 else:
     L += ["모델 교차검증: 한쪽 클래스가 5개 미만이라 생략.", ""]
 L += ["## 한계", "", f"- 고유 문자열 {len(d)}개 표본. 드문 표기(1회 등장)가 대부분이라 고유 문자열 기준 수치는 희귀 표기 쪽 성능을 주로 반영함.",
-      "- 정답은 문자열만 본 사람 판정이며 실제 지붕 재료를 확인한 것이 아님. '스레트기와' 같은 표기는 석면 슬레이트인지 문자열만으로 알 수 없음.",
+      "- 정답은 문자열만 본 판정이며 실제 지붕 재료를 확인한 것이 아님. '스레트기와' 같은 표기는 석면 슬레이트인지 문자열만으로 알 수 없음.",
       "- 경산시 표제부에서만 뽑았으므로 다른 지역 표기에는 일반화되지 않을 수 있음.", ""]
 OUT.write_text("\n".join(L), encoding="utf-8")
 print("보고서 작성:", OUT)
