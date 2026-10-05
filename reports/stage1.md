@@ -196,4 +196,4 @@ fold별 F1: 0.645 / 0.543 / 0.571 / 0.636 / 0.628 (평균 0.605, 표준편차 0.
 **지침과 달라진 점**
 - Python 3.11 대신 3.14 (PC에 3.14만 설치됨).
 - 로지스틱 회귀·교차검증·지표는 scikit-learn 대신 `src/mlutil.py` 의 자체 구현(torch/numpy) 사용. 이 PC의 Windows 애플리케이션 제어 정책이 scikit-learn DLL 로드를 차단했기 때문. 목적함수는 sklearn `LogisticRegression(C=0.1)` 과 동일하며 합성 데이터로 동작을 확인함.
-- 브이월드 키: 1단계 타일(자인면 579장)과 읍면동 경계는 dasel 프로젝트 키로 받았음. 1.5단계부터는 이 프로젝트 전용 키로 교체(서비스 URL https://slate-roof-gyeongsan.vercel.app).
+- 브이월드 키: 1단계 타일(자인면 579장)과 읍면동 경계는 dasel 프로젝트 키로 받았음. 1.5단계부터는 이 프로젝트 전용 키로 교체함(서비스 URL https://slate-roof-gyeongsan.vercel.app, 2026-10-05 발급). 판독 표본용 타일 287장은 새 키로 받음.
