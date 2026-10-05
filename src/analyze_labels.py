@@ -14,6 +14,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mlutil
+from mlutil import rate
 
 ROOT = Path(__file__).resolve().parents[1]
 LAB = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "labels"   # 인자로 다른 폴더를 주면 그 폴더의 판독 CSV 사용(검증용)
@@ -21,24 +22,6 @@ KEYDIR = ROOT / "data" / "labels"
 OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "reports" / "stage1_5.md"
 VERDICTS = ["slate", "not_slate", "unreadable"]
 KO = {"slate": "슬레이트", "not_slate": "슬레이트 아님", "unreadable": "판독불가"}
-
-
-def wilson(k: int, n: int, z: float = 1.959964) -> tuple[float, float]:
-    """이항 비율의 95% Wilson 신뢰구간."""
-    if n == 0:
-        return float("nan"), float("nan")
-    p = k / n
-    d = 1 + z * z / n
-    c = (p + z * z / (2 * n)) / d
-    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
-    return max(0.0, c - h), min(1.0, c + h)
-
-
-def rate(k: int, n: int) -> str:
-    if n == 0:
-        return "해당 없음 (0건)"
-    lo, hi = wilson(k, n)
-    return f"{k}/{n} = {k / n:.1%} (95% CI {lo:.1%}–{hi:.1%})"
 
 
 def kappa(a: pd.Series, b: pd.Series, cats: list[str]) -> float:

@@ -3,6 +3,8 @@
 - L2 로지스틱 회귀: sklearn LogisticRegression(C) 과 같은 목적함수 0.5·||w||² + C·Σ logloss (절편은 규제 제외), L-BFGS
 - 표준화, 층화·그룹 K-fold, precision/recall/F1/ROC-AUC/혼동행렬
 """
+import math
+
 import numpy as np
 import torch
 
@@ -73,3 +75,21 @@ def prf(y: np.ndarray, pred: np.ndarray) -> dict:
     r = tp / (tp + fn) if tp + fn else 0.0
     f = 2 * p * r / (p + r) if p + r else 0.0
     return dict(precision=p, recall=r, f1=f, tn=tn, fp=fp, fn=fn, tp=tp)
+
+
+def wilson(k: int, n: int, z: float = 1.959964) -> tuple[float, float]:
+    """이항 비율의 95% Wilson 신뢰구간."""
+    if n == 0:
+        return float("nan"), float("nan")
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return max(0.0, c - h), min(1.0, c + h)
+
+
+def rate(k: int, n: int) -> str:
+    if n == 0:
+        return "해당 없음 (0건)"
+    lo, hi = wilson(k, n)
+    return f"{k}/{n} = {k / n:.1%} (95% CI {lo:.1%}–{hi:.1%})"
