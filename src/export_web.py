@@ -1,9 +1,9 @@
 """웹 데모용 데이터 내보내기 → web/public/data/
 
-- buildings.geojson : 읍·면 8곳의 건물 도형(EPSG:4326). 주소·지번·PNU는 넣지 않는다.
+- buildings.geojson : 경산시 전체(읍·면·동 36곳) 건물 도형(EPSG:4326). 주소·지번·PNU는 넣지 않는다.
   cat: 1=대장 슬레이트 주택(확실: 슬레이트 단독·코드만), 3=혼합 기재 주택, 2=그 외 주택, 0=그 밖(비주택·대장 미연결)
   h: 높이(m) — GIS 높이 → 없으면 지상층수×3 → 둘 다 없으면 3. he: 높이를 추정했으면 1
-- emd.geojson : 읍·면 8곳 경계와 집계
+- emd.geojson : 읍·면·동 36곳 경계와 집계
 """
 import json
 from pathlib import Path
@@ -18,7 +18,6 @@ INT, PRO, OUT = ROOT / "data" / "interim", ROOT / "data" / "processed", ROOT / "
 OUT.mkdir(parents=True, exist_ok=True)
 
 emd = gpd.read_file(INT / "gs_emd.gpkg")
-emd = emd[emd["emd_kor_nm"].str.endswith(("읍", "면"))]
 b = gpd.read_file(INT / "gs_buildings.gpkg").drop_duplicates("gis_bld_id")
 b = b[b["bjd_cd"].str[:8].isin(emd["emd_cd"])].copy()
 b["emd"] = b["bjd_cd"].str[:8].map(dict(zip(emd["emd_cd"], emd["emd_kor_nm"])))

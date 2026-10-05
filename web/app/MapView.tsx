@@ -118,7 +118,7 @@ export default function MapView() {
       setEmds(list);
       for (const e of list) {
         const d = document.createElement("div");
-        d.className = "emdlabel";
+        d.className = e.name.endsWith("동") ? "emdlabel dong" : "emdlabel";
         d.textContent = e.name;
         new maplibregl.Marker({ element: d }).setLngLat(e.center).addTo(map);
       }
@@ -152,7 +152,7 @@ export default function MapView() {
   const listAll = listEmd === "전체" ? items : items.filter((it) => it.p.emd === listEmd);
   const listShown = listAll.slice(0, listN);
   const downloadList = () => {
-    const head = ["목록순번", "시전체순위", "점수", "읍면", "분류", "지붕자유기재", "사용승인연도", "건축면적", "학교거리m", "어린이집거리m", "경로당거리m", "경도", "위도"];
+    const head = ["목록순번", "시전체순위", "점수", "읍면동", "분류", "지붕자유기재", "사용승인연도", "건축면적", "학교거리m", "어린이집거리m", "경로당거리m", "경도", "위도"];
     const rows = listShown.map((it, i) => [i + 1, it.p.pr, it.p.ps, it.p.emd, it.p.rc, `"${(it.p.etc ?? "").replace(/"/g, '""')}"`,
       it.p.year ?? "", it.p.area ?? "", it.p.ds, it.p.dd, it.p.de, it.center[0].toFixed(6), it.center[1].toFixed(6)].join(","));
     const blob = new Blob(["﻿" + [head.join(","), ...rows].join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
@@ -180,9 +180,9 @@ export default function MapView() {
         <div className="canvas" ref={el} />
         {!ready && <div className="loading">건물 도형을 불러오는 중…</div>}
         <div className="bar">
-          <div className="brand">지붕 아래 사람<small>경산시 읍·면 8곳 건물 지도</small></div>
-          <select aria-label="읍·면으로 이동" defaultValue="" onChange={(e) => flyTo(e.target.value)}>
-            <option value="" disabled>읍·면으로 이동</option>
+          <div className="brand">지붕 아래 사람<small>경산시 건물 지도</small></div>
+          <select aria-label="읍·면·동으로 이동" defaultValue="" onChange={(e) => flyTo(e.target.value)}>
+            <option value="" disabled>읍·면·동으로 이동</option>
             {emds.map((e) => <option key={e.name} value={e.name}>{e.name} · 슬레이트 주택 {e.sure.toLocaleString()}~{e.slate.toLocaleString()}동</option>)}
           </select>
           {VWORLD_KEY && <button aria-pressed={aerial} onClick={toggleAerial}>항공영상</button>}
@@ -204,8 +204,8 @@ export default function MapView() {
           <>
             <p className="note">대장에 슬레이트로 적힌 주택을 우선순위 점수 순으로 보여줍니다. 지원 사업을 먼저 안내하러 갈 집을 고르는 용도이며, 실제 슬레이트 여부는 현장에서 확인해야 합니다.</p>
             <div className="filters">
-              <select aria-label="읍·면" value={listEmd} onChange={(e) => setListEmd(e.target.value)}>
-                <option value="전체">읍·면 8곳 전체</option>
+              <select aria-label="읍·면·동" value={listEmd} onChange={(e) => setListEmd(e.target.value)}>
+                <option value="전체">경산시 전체</option>
                 {emds.map((e) => <option key={e.name} value={e.name}>{e.name}</option>)}
               </select>
               <select aria-label="표시 수" value={listN} onChange={(e) => setListN(Number(e.target.value))}>
@@ -217,7 +217,7 @@ export default function MapView() {
             </div>
             <p className="note">{listEmd} 대상 {listAll.length.toLocaleString()}동 중 {listShown.length.toLocaleString()}동 표시 · 행을 누르면 지도에서 그 건물로 이동합니다</p>
             <table className="visit">
-              <thead><tr><th>#</th><th>읍·면</th><th>기재</th><th>사용승인</th><th>점수</th></tr></thead>
+              <thead><tr><th>#</th><th>읍·면·동</th><th>기재</th><th>사용승인</th><th>점수</th></tr></thead>
               <tbody>
                 {listShown.map((it, i) => (
                   <tr key={it.id} className="row" onClick={() => visit(it)}>
@@ -235,7 +235,7 @@ export default function MapView() {
             <h3>건축물대장</h3>
             {sel.reg ? (
               <dl>
-                <dt>읍·면</dt><dd>{sel.emd}</dd>
+                <dt>읍·면·동</dt><dd>{sel.emd}</dd>
                 <dt>주용도</dt><dd>{sel.use || "미확인"}</dd>
                 <dt>지붕 코드</dt><dd>{sel.roof || "(빈값)"}</dd>
                 <dt>지붕 자유기재</dt><dd>{sel.etc || "(빈값)"}</dd>
@@ -248,7 +248,7 @@ export default function MapView() {
               </dl>
             ) : (
               <>
-                <dl><dt>읍·면</dt><dd>{sel.emd}</dd><dt>GIS 용도</dt><dd>{sel.use || "미확인"}</dd></dl>
+                <dl><dt>읍·면·동</dt><dd>{sel.emd}</dd><dt>GIS 용도</dt><dd>{sel.use || "미확인"}</dd></dl>
                 <p className="note">이 건물 도형과 연결된 건축물대장 표제부가 없습니다. 지붕 정보는 알 수 없습니다.</p>
               </>
             )}
@@ -279,9 +279,9 @@ export default function MapView() {
           <>
             <h2>건물을 눌러 대장 기록을 확인하세요</h2>
             <p className="note">진한 주황은 대장 지붕이 슬레이트 단독으로, 연한 주황은 다른 재료와 함께(혼합) 적힌 주택입니다. 3D 높이는 보기용이며 판정 기능이 아닙니다.</p>
-            <h3>읍·면별 대장 슬레이트 주택 (확실 ~ 최대)</h3>
+            <h3>읍·면·동별 대장 슬레이트 주택 (확실 ~ 최대)</h3>
             <table>
-              <thead><tr><th>읍·면</th><th>주택</th><th>확실</th><th>최대</th></tr></thead>
+              <thead><tr><th>읍·면·동</th><th>주택</th><th>확실</th><th>최대</th></tr></thead>
               <tbody>
                 {emds.map((e) => (
                   <tr key={e.name} className="row" onClick={() => flyTo(e.name)}>
