@@ -1,0 +1,15 @@
+geopandas
+pyogrio
+rasterio
+shapely
+requests
+python-dotenv
+pandas
+numpy
+pillow
+matplotlib
+mapclassify
+scikit-learn
+torch
+torchvision
+timm
