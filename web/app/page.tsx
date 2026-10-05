@@ -1,5 +1,5 @@
-import MapView from "./MapView";
+import PublicMap from "./PublicMap";
 
 export default function Page() {
-  return <MapView />;
+  return <PublicMap />;
 }

@@ -45,7 +45,22 @@ function ringBounds(geom: GeoJSON.Geometry): [number, number, number, number] {
   return [x0, y0, x1, y1];
 }
 
-export default function MapView() {
+// 건물 단위 자료는 접근 키를 확인하는 API에서 조각으로 받는다
+async function loadBuildings(accessKey: string): Promise<GeoJSON.FeatureCollection> {
+  const get = (i: number) => fetch(`/api/buildings?part=${i}`, { headers: { "x-access-key": accessKey }, cache: "no-store" });
+  const first = await get(0);
+  if (first.status === 401) throw new Error("접근 키가 맞지 않습니다.");
+  if (!first.ok) throw new Error("건물 자료를 불러오지 못했습니다.");
+  const n = Number(first.headers.get("x-parts") ?? "1");
+  const rest = await Promise.all(Array.from({ length: n - 1 }, (_, k) => get(k + 1).then((r) => {
+    if (!r.ok) throw new Error("건물 자료를 불러오지 못했습니다.");
+    return r.json() as Promise<GeoJSON.FeatureCollection>;
+  })));
+  const head = (await first.json()) as GeoJSON.FeatureCollection;
+  return { type: "FeatureCollection", features: head.features.concat(...rest.map((r) => r.features)) };
+}
+
+export default function MapView({ accessKey, onDenied }: { accessKey: string; onDenied: (message: string) => void }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const picked = useRef<number | null>(null);
@@ -72,10 +87,16 @@ export default function MapView() {
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "건축물대장 표제부·GIS건물통합정보(국토교통부) · 브이월드" }));
 
     map.on("load", async () => {
-      const [emdJson, bld] = await Promise.all([
-        fetch("/data/emd.geojson").then((r) => r.json() as Promise<GeoJSON.FeatureCollection>),
-        fetch("/data/buildings.geojson").then((r) => r.json() as Promise<GeoJSON.FeatureCollection>),
-      ]);
+      let emdJson: GeoJSON.FeatureCollection, bld: GeoJSON.FeatureCollection;
+      try {
+        [emdJson, bld] = await Promise.all([
+          fetch("/data/emd.geojson").then((r) => r.json() as Promise<GeoJSON.FeatureCollection>),
+          loadBuildings(accessKey),
+        ]);
+      } catch (e) {
+        onDenied(e instanceof Error ? e.message : "건물 자료를 불러오지 못했습니다.");
+        return;
+      }
       if (VWORLD_KEY) {
         map.addSource("aerial", {
           type: "raster", tileSize: 256, maxzoom: 19,
@@ -134,7 +155,8 @@ export default function MapView() {
     map.on("mouseenter", "bld", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "bld", () => { map.getCanvas().style.cursor = ""; });
     return () => map.remove();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessKey]);
 
   const pick = (id: number, props: Props) => {
     const map = mapRef.current;
@@ -180,7 +202,7 @@ export default function MapView() {
         <div className="canvas" ref={el} />
         {!ready && <div className="loading">건물 도형을 불러오는 중…</div>}
         <div className="bar">
-          <div className="brand">온지붕<small>건축물대장 AI 기반 석면 슬레이트 주택 발굴</small></div>
+          <div className="brand">온지붕<small>행정 담당자 화면 · 건물 단위</small></div>
           <select aria-label="읍·면·동으로 이동" defaultValue="" onChange={(e) => flyTo(e.target.value)}>
             <option value="" disabled>읍·면·동으로 이동</option>
             {emds.map((e) => <option key={e.name} value={e.name}>{e.name} · 슬레이트 주택 {e.sure.toLocaleString()}~{e.slate.toLocaleString()}동</option>)}

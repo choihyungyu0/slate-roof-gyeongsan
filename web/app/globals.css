@@ -73,3 +73,18 @@ tr.row:hover td { color: var(--pick); }
 .bar.tour-focus { box-shadow: none; outline: none; }
 .bar.tour-focus > * { outline: 3px solid var(--pick); outline-offset: 2px; }
 .emdlabel.dong { font-size: 11px; font-weight: 600; opacity: .9; }
+tr.row.on td { color: var(--pick); }
+a.adminlink, .gate a { color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+a.adminlink:hover, .gate a:hover { color: var(--pick); }
+.gate { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; }
+.gate form { width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
+.gate h1 { margin: 0 0 8px; font-size: 20px; }
+.gate h1 small { font-size: 13px; font-weight: 400; color: var(--dim); margin-left: 6px; }
+.gate p { color: var(--dim); line-height: 1.6; font-size: 13.5px; }
+.gate label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); }
+.gate input { width: 100%; padding: 10px 12px; font: inherit; color: var(--text); background: #111317; border: 1px solid var(--line); border-radius: 8px; }
+.gate .err { color: #ff8f73; margin: 10px 0 0; }
+.gate-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+.gate-actions button { background: var(--pick); color: #17181a; border-color: var(--pick); font-weight: 700; padding: 9px 18px; }
+.collabel { color: #17181a; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; line-height: 1.25; background: rgba(255, 255, 255, .82); border-radius: 6px; padding: 3px 7px; pointer-events: none; }
+.collabel b { display: block; font-size: 13px; }
