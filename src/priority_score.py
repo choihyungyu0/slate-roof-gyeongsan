@@ -78,41 +78,46 @@ def score(weights: dict) -> pd.Series:
 
 
 s["score"] = score(WEIGHTS).round(1)
-s["rank"] = s["score"].rank(ascending=False, method="first").astype(int)
-out = s[["rank", "score", "gis_bld_id", "emd_nm", "roof_class", "year", "archArea", "match_how"]].copy()
+# 위치가 없는 주택은 거리 항목이 빠져 점수가 높게 나오므로(거리 점수는 대부분 0에 가깝다) 같은 순위표에 넣지 않는다
+s["located"] = has_pt
+s["rank"] = s.loc[s["located"], "score"].rank(ascending=False, method="first")
+s["rank"] = s["rank"].astype("Int64")
+out = s[["rank", "score", "located", "gis_bld_id", "emd_nm", "roof_class", "year", "archArea", "match_how"]].copy()
 for k in used:
     out[f"c_{k}"] = comp[k].round(3).to_numpy()
 for k, d in dist.items():
     out[f"dist_{k}_m"] = np.round(d, 0)
-out.sort_values("rank").to_csv(PRO / "priority_scores.csv", index=False, encoding="utf-8-sig")
+out.sort_values(["rank", "score"], ascending=[True, False], na_position="last").to_csv(PRO / "priority_scores.csv", index=False, encoding="utf-8-sig")
 
-top = s[s["rank"] <= TOP]
+loc = s[s["located"]]
+top = loc[loc["rank"] <= TOP]
 L = ["# 우선순위 점수 계산 결과", "",
      "정책 점수다. 정답이 없으므로 정확도는 없고, 항목·가중치를 바꾸면 순위가 바뀐다. 설계와 가중치 근거는 `reports/priority_score.md`.", "",
      f"- 대상: 대장 슬레이트 주택(최대 기준) {len(s):,}동. 그중 건물 도형과 연결돼 위치가 있는 것 {int(has_pt.sum()):,}동",
      "- 반영한 항목: " + ", ".join(f"{KO[k]}({WEIGHTS[k]:.2f})" for k in used),
      "- **반영하지 못한 항목**: " + (", ".join(f"{KO[k]}({WEIGHTS[k]:.2f})" for k in missing) + " — 위치 자료 미확보. 가중치는 나머지 항목에 비례 배분함" if missing else "없음"),
-     f"- 점수 분포: 최소 {s['score'].min():.1f} · 중앙값 {s['score'].median():.1f} · 최대 {s['score'].max():.1f}. 상위 {TOP}동의 최저 점수 {top['score'].min():.1f}",
-     f"- 동점: 상위 {TOP}동 경계 점수({top['score'].min():.1f})와 같은 점수인 주택이 {int((s['score'] == top['score'].min()).sum())}동 있어, 경계 부근 순위는 임의(자료 순서)로 갈린다", "",
+     f"- **순위는 위치가 있는 {len(loc):,}동 안에서만 매겼다.** 위치가 없는 {int((~s['located']).sum()):,}동은 거리 항목을 계산할 수 없어 순위에서 빼고 별도 목록(rank 빈칸)으로 둔다. 이들을 같은 표에 넣으면 거리 항목이 빠진 만큼 점수가 높게 나와 상위를 차지하게 된다",
+     f"- 점수 분포(위치 있는 주택): 최소 {loc['score'].min():.1f} · 중앙값 {loc['score'].median():.1f} · 최대 {loc['score'].max():.1f}. 상위 {TOP}동의 최저 점수 {top['score'].min():.1f}",
+     f"- 동점: 상위 {TOP}동 경계 점수({top['score'].min():.1f})와 같은 점수인 주택이 {int((loc['score'] == top['score'].min()).sum())}동 있어, 경계 부근 순위는 임의(자료 순서)로 갈린다", "",
      f"## 상위 {TOP}동의 구성 (2026년 지원 물량 95동에 맞춘 예시)", "",
-     "| 읍면동 | 상위 95동 중 | 대상 주택 수 |", "|---|---|---|"]
-te, ae = top["emd_nm"].value_counts(), s["emd_nm"].value_counts()
+     "| 읍면동 | 상위 95동 중 | 위치 있는 대상 주택 수 |", "|---|---|---|"]
+te, ae = top["emd_nm"].value_counts(), loc["emd_nm"].value_counts()
 L += [f"| {k} | {v} | {int(ae[k]):,} |" for k, v in te.items()]
 L += ["", "| 기재 분류 | 상위 95동 중 | 대상 주택 수 |", "|---|---|---|"]
-L += [f"| {k} | {int((top['roof_class'] == k).sum())} | {int(v):,} |" for k, v in s["roof_class"].value_counts().items()]
+L += [f"| {k} | {int((top['roof_class'] == k).sum())} | {int(v):,} |" for k, v in loc["roof_class"].value_counts().items()]
 dec = lambda d: (d["year"] // 10 * 10).astype("Int64").astype(str).replace("<NA>", "연도 불명")
 L += ["", "| 사용승인 연대 | 상위 95동 중 |", "|---|---|"] + [f"| {k} | {v} |" for k, v in dec(top).value_counts().sort_index().items()]
 
 L += ["", "## 민감도 — 가중치를 바꾸면 상위 95동이 얼마나 바뀌나", "",
       "한 항목의 가중치를 ±0.10 바꾸고(나머지는 그대로, 합으로 나눠 정규화) 다시 뽑은 상위 95동이 기본값의 상위 95동과 겹치는 수.", "",
       "| 항목 | +0.10 | −0.10 |", "|---|---|---|"]
-base = set(s.loc[s["rank"] <= TOP].index)
+base = set(top.index)
 for k in used:
     row = []
     for delta in (0.10, -0.10):
         w = dict(WEIGHTS)
         w[k] = max(0.0, w[k] + delta)
-        sc = score(w)
+        sc = score(w)[s["located"]]
         row.append(len(base & set(sc.rank(ascending=False, method="first").loc[lambda r: r <= TOP].index)))
     L.append(f"| {KO[k]} | {row[0]} / {TOP} | {row[1]} / {TOP} |")
 L += ["", "## 한계", "",
