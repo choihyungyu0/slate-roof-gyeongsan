@@ -1,1 +1,8 @@
 .vercel
+node_modules
+.next
+next-env.d.ts
+*.tsbuildinfo
+.env*.local
+# 건물 단위 자료(24MB). src/export_web.py 로 다시 만든다
+public/data/buildings.geojson
