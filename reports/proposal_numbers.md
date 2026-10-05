@@ -72,4 +72,4 @@
 |---|---|
 | `outputs/figs/proposal_fig1.png` | 읍면동별 대장 슬레이트 주택 수 단계구분도 (확실~최대 표기, 흑백 300dpi) |
 | `outputs/figs/proposal_fig2.png` | 대장과 영상이 다른 지붕 예시 3컷 (육안 선정, 현장 미확인). 컬러판 `proposal_fig2_color.png` |
-| `outputs/figs/screenshot_3d_*.jpg` | 3D 건물 지도 화면. **색 구분이 바뀌기 전(6,189동 기준)에 찍은 것**이라 다시 캡처해야 함 |
+| `outputs/figs/proposal_fig3_3d.png` | 3D 건물 지도 화면(자인면, 항공영상 배경, 범례 포함, 3200×2000). 색 4종: 슬레이트 단독 / 혼합 / 그 외 주택 / 그 밖. 주소·지번 없음. 컬러 그림임 |

@@ -39,7 +39,7 @@ export default function MapView() {
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [sel, setSel] = useState<Props | null>(null);
   const [ready, setReady] = useState(false);
-  const [aerial, setAerial] = useState(false);
+  const [aerial, setAerial] = useState(Boolean(VWORLD_KEY));  // 키가 있으면 항공영상을 기본으로 켠다
 
   useEffect(() => {
     if (!el.current) return;
@@ -62,10 +62,10 @@ export default function MapView() {
           type: "raster", tileSize: 256, maxzoom: 19,
           tiles: [`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`],
         });
-        map.addLayer({ id: "aerial", type: "raster", source: "aerial", layout: { visibility: "none" }, paint: { "raster-opacity": 0.85 } });
+        map.addLayer({ id: "aerial", type: "raster", source: "aerial", paint: { "raster-opacity": 0.85 } });
       }
       map.addSource("emd", { type: "geojson", data: emdJson });
-      map.addLayer({ id: "emd-fill", type: "fill", source: "emd", paint: { "fill-color": "#1a1d23", "fill-opacity": 0.6 } });
+      map.addLayer({ id: "emd-fill", type: "fill", source: "emd", paint: { "fill-color": "#1a1d23", "fill-opacity": VWORLD_KEY ? 0 : 0.6 } });
       map.addLayer({ id: "emd-line", type: "line", source: "emd", paint: { "line-color": "#5b6370", "line-width": 1.2 } });
       map.addSource("bld", { type: "geojson", data: bld });
       map.addLayer({
