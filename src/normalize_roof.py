@@ -52,7 +52,7 @@ def classify_building(code: str, text_cls: str, text: str) -> str:
 
 
 def main() -> None:
-    t = pd.read_parquet(PRO / "title_joined.parquet")
+    t = pd.read_parquet(PRO / "title_joined.parquet").drop(columns=["text_class", "roof_class"], errors="ignore")
     for c in ("roofCdNm", "etcRoof"):
         t[c] = t[c].fillna("").str.strip()
     uniq = pd.DataFrame({"etcRoof": t["etcRoof"].unique()})
@@ -81,10 +81,10 @@ def main() -> None:
     print("\n주택류 건물 분류:", h["roof_class"].value_counts().to_dict())
     print("코드만 쓸 때 슬레이트 주택:", int((h["roofCdNm"] == "슬레이트").sum()))
     print(pd.crosstab(h["roofCdNm"].replace("", "(빈값)"), h["roof_class"]).to_string())
-    old = int(h["slate"].sum())
+    old = int(h["slate_regex"].sum())
     print("이전 정규식 기준 슬레이트 주택:", old, "| 새 규칙 슬레이트+혼합+코드만:", int(h["roof_class"].isin(["슬레이트", "혼합", "코드만 슬레이트"]).sum()))
-    print("이전=슬레이트인데 새 규칙=불명/비슬레이트:", h[h["slate"] & h["roof_class"].isin(["불명", "비슬레이트"])]["etcRoof"].value_counts().head(15).to_dict())
-    print("이전≠슬레이트인데 새 규칙=슬레이트 계열:", h[~h["slate"] & h["roof_class"].isin(["슬레이트", "혼합", "코드만 슬레이트"])]["etcRoof"].value_counts().head(10).to_dict())
+    print("이전=슬레이트인데 새 규칙=불명/비슬레이트:", h[h["slate_regex"] & h["roof_class"].isin(["불명", "비슬레이트"])]["etcRoof"].value_counts().head(15).to_dict())
+    print("이전≠슬레이트인데 새 규칙=슬레이트 계열:", h[~h["slate_regex"] & h["roof_class"].isin(["슬레이트", "혼합", "코드만 슬레이트"])]["etcRoof"].value_counts().head(10).to_dict())
 
 
 if __name__ == "__main__":
@@ -93,13 +93,14 @@ if __name__ == "__main__":
 
 def report() -> None:
     """reports/roof_normalization.md 작성 (main() 이 만든 산출물을 읽어 표로 정리)."""
-    t = pd.read_parquet(PRO / "title_joined.parquet").merge(pd.read_parquet(PRO / "roof_normalized.parquet"), on="mgmBldrgstPk")
+    t = pd.read_parquet(PRO / "title_joined.parquet").drop(columns=["text_class", "roof_class"], errors="ignore").merge(pd.read_parquet(PRO / "roof_normalized.parquet"), on="mgmBldrgstPk")
     s = pd.read_csv(PRO / "roof_strings_all.csv", dtype=str).fillna("")
     s["n"] = s["n"].astype(int)
     h = t[t["house"]]
     code = int((h["roofCdNm"] == "슬레이트").sum())
     rc = h["roof_class"].value_counts()
     incl = int(rc.get("슬레이트", 0) + rc.get("혼합", 0) + rc.get("코드만 슬레이트", 0))
+    sure = int(rc.get("슬레이트", 0) + rc.get("코드만 슬레이트", 0))
     amb = h[(h["text_class"] == "불명(표기 모호)") & (h["roof_class"] == "불명")]
     es = s[s["etcRoof"] != ""].drop_duplicates("etcRoof")
     left = es[es["leftover"] != ""]
@@ -133,10 +134,10 @@ def report() -> None:
     L += [f"| {i} | " + " | ".join(f"{int(ct.loc[i, c]):,}" for c in cols) + " |" for i in ct.index] + [""]
     L += ["## 표기 모호(불명)로 둔 것", "", "문자열만으로 석면 슬레이트인지 정할 수 없어 슬레이트 집계에서 뺐다. 주택류 기준 상위:", ""]
     L += [f"- `{k}` {v}동" for k, v in amb["etcRoof"].value_counts().head(10).items()] + [""]
-    old = int(h["slate"].sum())
+    old = int(h["slate_regex"].sum())
     L += ["## 이전 집계와의 차이", "",
           f"- 1단계 보고서의 슬레이트 주택 {old:,}동은 `스레트기와` 류를 슬레이트에 포함한 값이다. 이번 정규화에서는 이를 불명으로 분리해 {incl:,}동이 됐다(차이 {old - incl}동).",
-          "- 읍면동별 집계·지도·3D 화면은 아직 이전 기준(6,189동)으로 만들어져 있다.", "",
+          f"- 슬레이트 주택 수는 범위로 쓴다: **확실 {sure:,}동**(슬레이트 단독 + 코드만 슬레이트) ~ **최대 {incl:,}동**(혼합 기재 포함). 읍면동별 집계·지도·3D 화면도 이 기준이다.", "",
           "## 한계", "",
           "- 대장 기재를 읽은 것이며 실제 지붕 재료를 확인한 것이 아니다.",
           "- 혼합 기재는 지붕의 어느 부분이 슬레이트인지, 건물 여러 동을 한 줄에 적은 것인지 알 수 없다.",

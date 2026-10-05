@@ -11,6 +11,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from normalize_roof import classify_building, classify_text
+
 ROOT = Path(__file__).resolve().parents[1]
 INT = ROOT / "data" / "interim"
 OUT = ROOT / "data" / "processed"
@@ -47,7 +49,14 @@ ev.rename_axis("etcRoof").reset_index(name="n").to_csv(OUT / "roof_values.csv", 
 
 t["slate_code"] = t["roofCdNm"].eq("슬레이트")
 t["slate_text"] = t["etcRoof"].str.contains(SLATE_RE, case=False, regex=True)
-t["slate"] = t["slate_code"] | t["slate_text"]
+t["slate_regex"] = t["slate_code"] | t["slate_text"]  # 1단계의 정규식 기준(참고용)
+# 집계 기준은 규칙표 정규화(rules/roof_rules.csv). 슬레이트 주택 수는 범위로 본다:
+#   확실 = 슬레이트 단독 + 코드만 슬레이트 / 최대 = 확실 + 혼합 기재
+_tc = {s: classify_text(s)[0] for s in t["etcRoof"].unique()}
+t["text_class"] = t["etcRoof"].map(_tc)
+t["roof_class"] = [classify_building(c, k, s) for c, k, s in zip(t["roofCdNm"], t["text_class"], t["etcRoof"])]
+t["slate"] = t["roof_class"].isin(["슬레이트", "혼합", "코드만 슬레이트"])  # 최대
+t["slate_sure"] = t["roof_class"].isin(["슬레이트", "코드만 슬레이트"])   # 확실
 section("A. 슬레이트 표기 형태")
 print("etcRoof 중 슬레이트로 판정된 표기(빈도순):")
 print(t.loc[t["slate_text"], "etcRoof"].value_counts().head(40).to_string())
@@ -74,14 +83,16 @@ t["year"] = y.where((y >= YEAR_MIN) & (y <= 2026))
 sh = t[t["house"] & t["slate"]].copy()
 
 section("B. 슬레이트 주택")
-print("주택류(단독주택+공동주택) 표제부:", f"{int(t['house'].sum()):,}", "| 그중 슬레이트:", f"{len(sh):,}")
+n_sure = int(sh["slate_sure"].sum())
+print("주택류(단독주택+공동주택) 표제부:", f"{int(t['house'].sum()):,}", f"| 슬레이트 주택: 확실 {n_sure:,} ~ 최대 {len(sh):,}")
+print("정규화 분류:", sh["roof_class"].value_counts().to_dict(), "| 표기 모호로 제외:", int((t["house"] & (t["text_class"] == "불명(표기 모호)") & ~t["slate"]).sum()))
 print("주용도별:", sh["mainPurpsCdNm"].value_counts().to_dict())
 print("주/부속:", sh["mainAtchGbCdNm"].value_counts().to_dict())
 print("판정 근거: 코드만", int((sh.slate_code & ~sh.slate_text).sum()), "| 텍스트만", int((~sh.slate_code & sh.slate_text).sum()),
       "| 둘 다", int((sh.slate_code & sh.slate_text).sum()))
 print("읍면동 코드 매핑 실패:", int(t["emd_nm"].isna().sum()))
 
-by = (t[t["house"]].groupby(["emd_cd", "emd_nm"]).agg(houses=("house", "size"), slate_houses=("slate", "sum")).reset_index())
+by = (t[t["house"]].groupby(["emd_cd", "emd_nm"]).agg(houses=("house", "size"), slate_sure=("slate_sure", "sum"), slate_houses=("slate", "sum")).reset_index())
 by["slate_main"] = by["emd_cd"].map(sh[sh["mainAtchGbCdNm"].eq("주건축물")].groupby("emd_cd").size()).fillna(0).astype(int)
 by["slate_share_pct"] = (by["slate_houses"] / by["houses"] * 100).round(1)
 by["median_year"] = by["emd_cd"].map(sh.groupby("emd_cd")["year"].median())
@@ -102,7 +113,8 @@ print(f"1990년 이전: {n_pre90:,} / 연도 확인 {n_known:,} = {n_pre90 / n_k
 n_main = int(sh["mainAtchGbCdNm"].eq("주건축물").sum())
 print(f"\n2026년 지원 물량 {SUPPORT_2026}동 기준 소요: 전체 {len(sh):,}동 → {len(sh) / SUPPORT_2026:.1f}년, "
       f"주건축물만 {n_main:,}동 → {n_main / SUPPORT_2026:.1f}년")
-stats.update(house_rows=int(t["house"].sum()), slate_house=len(sh), slate_house_main=n_main,
+stats.update(house_rows=int(t["house"].sum()), slate_house=len(sh), slate_house_sure=n_sure, roof_class=sh["roof_class"].value_counts().to_dict(),
+             code_only_count=int((t["house"] & t["slate_code"]).sum()), slate_house_main=n_main,
              years_all=round(len(sh) / SUPPORT_2026, 1), years_main=round(n_main / SUPPORT_2026, 1),
              slate_house_year_known=int(sh["year"].notna().sum()),
              slate_house_pre1990=n_pre90, slate_house_year_unknown=int(sh["year"].isna().sum()),
@@ -191,7 +203,7 @@ stats.update(polygons=len(b), pnu_rate_all=round(float(t["pnu_hit"].mean()), 4),
              polygons_without_title_pnu=int((~b["PNU"].isin(set(t["PNU"]))).sum()))
 
 t.to_parquet(OUT / "title_joined.parquet", index=False)
-keep = ["mgmBldrgstPk", "emd_cd", "emd_nm", "mainPurpsCdNm", "mainAtchGbCdNm", "roofCdNm", "etcRoof", "year", "archArea", "match_how", "gis_bld_id"]
+keep = ["mgmBldrgstPk", "emd_cd", "emd_nm", "mainPurpsCdNm", "mainAtchGbCdNm", "roofCdNm", "etcRoof", "roof_class", "slate_sure", "year", "archArea", "match_how", "gis_bld_id"]
 g = b[["gis_bld_id", "geometry"]].merge(t.loc[hs & bm, keep], on="gis_bld_id", how="inner")
 g.to_file(OUT / "slate_houses.gpkg", layer="polygons", driver="GPKG")
 g.assign(geometry=g.geometry.representative_point()).to_file(OUT / "slate_houses.gpkg", layer="points", driver="GPKG")

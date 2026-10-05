@@ -3,9 +3,10 @@
 import maplibregl, { type LngLatBoundsLike, type MapGeoJSONFeature } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
-// cat: 1=대장 슬레이트 주택, 2=그 외 주택, 0=그 밖(비주택·대장 미연결)
+// cat: 1=대장 슬레이트 주택(단독 기재), 3=혼합 기재 주택, 2=그 외 주택, 0=그 밖(비주택·대장 미연결)
 const CATS = [
-  { cat: 1, label: "대장 슬레이트 주택", color: "#f0703c" },
+  { cat: 1, label: "슬레이트 단독 기재 주택", color: "#f0703c" },
+  { cat: 3, label: "혼합 기재 주택 (예: 기와/스레트)", color: "#f2c08a" },
   { cat: 2, label: "그 외 주택", color: "#7c9cc0" },
   { cat: 0, label: "그 밖 (비주택·대장 미연결)", color: "#414854" },
 ];
@@ -14,9 +15,9 @@ const VWORLD_KEY = process.env.NEXT_PUBLIC_VWORLD_KEY;
 
 type Props = {
   cat: number; h: number; he: number; hsrc: string; emd: string; reg: number; use?: string | null;
-  roof?: string; etc?: string; how?: string; year?: number | null; yflag?: number; area?: number | null; sc?: number; st?: number;
+  roof?: string; etc?: string; rc?: string; how?: string; year?: number | null; yflag?: number; area?: number | null; sc?: number; st?: number;
 };
-type Emd = { name: string; houses: number; slate: number; share: number; bounds: LngLatBoundsLike; center: [number, number] };
+type Emd = { name: string; houses: number; sure: number; slate: number; share: number; bounds: LngLatBoundsLike; center: [number, number] };
 
 function ringBounds(geom: GeoJSON.Geometry): [number, number, number, number] {
   let x0 = 180, y0 = 90, x1 = -180, y1 = -90;
@@ -71,19 +72,19 @@ export default function MapView() {
         id: "bld", type: "fill-extrusion", source: "bld",
         paint: {
           "fill-extrusion-color": ["case", ["boolean", ["feature-state", "picked"], false], PICK,
-            ["match", ["get", "cat"], 1, CATS[0].color, 2, CATS[1].color, CATS[2].color]],
+            ["match", ["get", "cat"], 1, CATS[0].color, 3, CATS[1].color, 2, CATS[2].color, CATS[3].color]],
           "fill-extrusion-height": ["get", "h"],
           "fill-extrusion-opacity": 0.92,
         },
       });
 
-      const c: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
+      const c: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
       for (const f of bld.features) c[(f.properties as Props).cat]++;
       setCounts(c);
       const list = emdJson.features.map((f): Emd => {
         const b = ringBounds(f.geometry);
-        const p = f.properties as { emd_kor_nm: string; houses: number; slate_houses: number; slate_share_pct: number };
-        return { name: p.emd_kor_nm, houses: p.houses, slate: p.slate_houses, share: p.slate_share_pct,
+        const p = f.properties as { emd_kor_nm: string; houses: number; slate_sure: number; slate_houses: number; slate_share_pct: number };
+        return { name: p.emd_kor_nm, houses: p.houses, sure: p.slate_sure, slate: p.slate_houses, share: p.slate_share_pct,
           bounds: [[b[0], b[1]], [b[2], b[3]]], center: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] };
       }).sort((a, b) => b.slate - a.slate);
       setEmds(list);
@@ -130,7 +131,7 @@ export default function MapView() {
           <div className="brand">지붕 아래 사람<small>경산시 읍·면 8곳 건물 지도</small></div>
           <select aria-label="읍·면으로 이동" defaultValue="" onChange={(e) => flyTo(e.target.value)}>
             <option value="" disabled>읍·면으로 이동</option>
-            {emds.map((e) => <option key={e.name} value={e.name}>{e.name} · 슬레이트 주택 {e.slate.toLocaleString()}동</option>)}
+            {emds.map((e) => <option key={e.name} value={e.name}>{e.name} · 슬레이트 주택 {e.sure.toLocaleString()}~{e.slate.toLocaleString()}동</option>)}
           </select>
           {VWORLD_KEY && <button aria-pressed={aerial} onClick={toggleAerial}>항공영상</button>}
         </div>
@@ -152,6 +153,7 @@ export default function MapView() {
                 <dt>주용도</dt><dd>{sel.use || "미확인"}</dd>
                 <dt>지붕 코드</dt><dd>{sel.roof || "(빈값)"}</dd>
                 <dt>지붕 자유기재</dt><dd>{sel.etc || "(빈값)"}</dd>
+                <dt>정규화 분류</dt><dd>{sel.rc}</dd>
                 <dt>슬레이트 근거</dt>
                 <dd>{sel.sc && sel.st ? "코드 + 자유기재" : sel.sc ? "코드만" : sel.st ? "자유기재만 (코드로는 안 잡힘)" : "해당 없음"}</dd>
                 <dt>사용승인</dt><dd>{sel.year ? `${sel.year}년` : sel.yflag ? "연도 불명 (대장 기재값 비정상)" : "연도 불명"}</dd>
@@ -175,19 +177,19 @@ export default function MapView() {
         ) : (
           <>
             <h2>건물을 눌러 대장 기록을 확인하세요</h2>
-            <p className="note">주황색은 건축물대장에 지붕이 슬레이트로 적힌 주택입니다. 3D 높이는 보기용이며 판정 기능이 아닙니다.</p>
-            <h3>읍·면별 대장 슬레이트 주택</h3>
+            <p className="note">진한 주황은 대장 지붕이 슬레이트 단독으로, 연한 주황은 다른 재료와 함께(혼합) 적힌 주택입니다. 3D 높이는 보기용이며 판정 기능이 아닙니다.</p>
+            <h3>읍·면별 대장 슬레이트 주택 (확실 ~ 최대)</h3>
             <table>
-              <thead><tr><th>읍·면</th><th>주택</th><th>슬레이트</th><th>비율</th></tr></thead>
+              <thead><tr><th>읍·면</th><th>주택</th><th>확실</th><th>최대</th></tr></thead>
               <tbody>
                 {emds.map((e) => (
                   <tr key={e.name} className="row" onClick={() => flyTo(e.name)}>
-                    <td>{e.name}</td><td>{e.houses.toLocaleString()}</td><td>{e.slate.toLocaleString()}</td><td>{e.share}%</td>
+                    <td>{e.name}</td><td>{e.houses.toLocaleString()}</td><td>{e.sure.toLocaleString()}</td><td>{e.slate.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="note">집계는 대장 전체 기준입니다. 지도에는 건물 도형과 연결된 건물만 색이 칠해집니다.</p>
+            <p className="note">확실은 슬레이트 단독 기재, 최대는 혼합 기재 포함입니다. 집계는 대장 전체 기준이고, 지도에는 건물 도형과 연결된 건물만 색이 칠해집니다.</p>
           </>
         )}
       </aside>

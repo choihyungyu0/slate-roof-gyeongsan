@@ -22,7 +22,7 @@ plt.rcParams["font.family"] = "Malgun Gothic"
 plt.rcParams["axes.unicode_minus"] = False
 
 SOURCE = ("자료: 국토교통부 건축HUB 건축물대장 표제부(2026-10-05 조회), 브이월드 GIS건물통합정보(기준일 2026-09-09)·법정 읍면동 경계\n"
-          "주택류(단독주택·공동주택) 중 지붕이 슬레이트로 기재된 건축물(동) 수. 무허가·미등재 건축물은 포함되지 않음")
+          "대장 지붕 기재 정규화 결과(주택류). 확실=슬레이트 단독 기재, 최대=혼합 기재(예: 기와/스레트) 포함. 지도 숫자는 확실~최대. 미등재 건축물 제외")
 GREYS = ["#ffffff", "#d9d9d9", "#a6a6a6", "#6e6e6e", "#2b2b2b"]
 
 
@@ -52,7 +52,7 @@ LABELS = ["24동 이하", "25–99동", "100–599동", "600–799동", "800동 
 emd = gpd.read_file(INT / "gs_emd.gpkg")
 by = pd.read_csv(PRO / "slate_by_dong.csv", dtype={"emd_cd": str})
 emd = emd.merge(by.drop(columns="emd_nm"), on="emd_cd", how="left")
-emd[["houses", "slate_houses", "slate_main"]] = emd[["houses", "slate_houses", "slate_main"]].fillna(0).astype(int)
+emd[["houses", "slate_sure", "slate_houses", "slate_main"]] = emd[["houses", "slate_sure", "slate_houses", "slate_main"]].fillna(0).astype(int)
 pts = gpd.read_file(PRO / "slate_houses.gpkg", layer="points")
 
 brk = [float(v) for v in BREAKS]
@@ -69,11 +69,11 @@ big = emd[emd.geometry.area > 4e6]  # 좁은 동 지역은 글자가 겹쳐 생�
 for _, r in big.iterrows():
     p = r.geometry.representative_point()
     dark = r["cls"] >= k - 2
-    ax.text(p.x, p.y, f"{r['emd_kor_nm']}\n{r['slate_houses']:,}", ha="center", va="center", fontsize=7.5,
+    ax.text(p.x, p.y, f"{r['emd_kor_nm']}\n{r['slate_sure']:,}~{r['slate_houses']:,}", ha="center", va="center", fontsize=7.5,
             color="w" if dark else "k", fontweight="bold")
 ax.legend(handles=[Patch(facecolor=colors[i], edgecolor="k", label=labels[i]) for i in range(k)],
-          title="슬레이트 주택 수(대장 기준)", loc="lower right", frameon=True, edgecolor="k", fontsize=9, title_fontsize=9)
-ax.set_title(f"경산시 읍면동별 슬레이트 지붕 주택 수 — 합계 {int(emd['slate_houses'].sum()):,}동", fontsize=14, fontweight="bold", loc="left")
+          title="슬레이트 주택 수(최대, 대장 기준)", loc="lower right", frameon=True, edgecolor="k", fontsize=9, title_fontsize=9)
+ax.set_title(f"경산시 읍면동별 대장 슬레이트 주택 수 — 확실 {int(emd['slate_sure'].sum()):,} ~ 최대 {int(emd['slate_houses'].sum()):,}동", fontsize=14, fontweight="bold", loc="left")
 decorations(ax, emd)
 fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.07)
 fig.savefig(OUT / "slate_choropleth.png", facecolor="w")
@@ -82,14 +82,17 @@ plt.close(fig)
 # --- 점지도 ---
 fig, ax = plt.subplots(figsize=(10, 9.2), dpi=200)
 emd.plot(ax=ax, color="w", edgecolor="#555", linewidth=0.5)
-pts.plot(ax=ax, color="k", markersize=1.6, alpha=0.75, linewidth=0)
+sure = pts["slate_sure"].astype(bool)
+pts[~sure].plot(ax=ax, color="#9a9a9a", markersize=1.6, alpha=0.8, linewidth=0)
+pts[sure].plot(ax=ax, color="k", markersize=1.6, alpha=0.8, linewidth=0)
 for _, r in big.iterrows():
     p = r.geometry.representative_point()
     ax.text(p.x, p.y, r["emd_kor_nm"], ha="center", va="center", fontsize=7.5, color="#444",
             bbox=dict(boxstyle="round,pad=0.15", fc="w", ec="none", alpha=0.75))
-ax.legend(handles=[plt.Line2D([], [], marker="o", ls="", color="k", markersize=4, label="슬레이트 주택 1동 (폴리곤과 매칭된 건물)")],
+ax.legend(handles=[plt.Line2D([], [], marker="o", ls="", color="k", markersize=4, label=f"슬레이트 단독 기재 ({int(sure.sum()):,}동)"),
+                   plt.Line2D([], [], marker="o", ls="", color="#9a9a9a", markersize=4, label=f"혼합 기재 ({int((~sure).sum()):,}동)")],
           loc="lower right", frameon=True, edgecolor="k", fontsize=9)
-ax.set_title(f"경산시 슬레이트 지붕 주택 분포 — 위치 확인 {len(pts):,}동", fontsize=14, fontweight="bold", loc="left")
+ax.set_title(f"경산시 대장 슬레이트 주택 분포 — 건물 도형과 연결된 {len(pts):,}동", fontsize=14, fontweight="bold", loc="left")
 decorations(ax, emd)
 fig.subplots_adjust(left=0.02, right=0.98, top=0.94, bottom=0.07)
 fig.savefig(OUT / "slate_points.png", facecolor="w")
@@ -99,7 +102,7 @@ plt.close(fig)
 gpkg = OUT / "slate_layers.gpkg"
 gpkg.unlink(missing_ok=True)
 emd.drop(columns="cls").to_file(gpkg, layer="emd_slate", driver="GPKG")
-pts[["emd_nm", "mainPurpsCdNm", "roofCdNm", "year", "geometry"]].to_file(gpkg, layer="slate_points", driver="GPKG")
+pts[["emd_nm", "mainPurpsCdNm", "roofCdNm", "roof_class", "year", "geometry"]].to_file(gpkg, layer="slate_points", driver="GPKG")
 
 SRS = ("<spatialrefsys><proj4>+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=600000 +ellps=GRS80 +units=m +no_defs</proj4>"
        "<srid>5186</srid><authid>EPSG:5186</authid><description>Korea 2000 / Central Belt 2010</description>"

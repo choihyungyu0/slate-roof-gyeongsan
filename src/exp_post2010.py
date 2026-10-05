@@ -26,7 +26,7 @@ INT, PRO = ROOT / "data" / "interim", ROOT / "data" / "processed"
 CROPS = INT / "crops"
 SEED, REGION, CAP, MIN_AREA = 42, "자인면", 300, 20.0
 
-t = pd.read_parquet(PRO / "title_joined.parquet").merge(pd.read_parquet(PRO / "roof_normalized.parquet"), on="mgmBldrgstPk")
+t = pd.read_parquet(PRO / "title_joined.parquet")  # roof_class 포함
 b = gpd.read_file(INT / "gs_buildings.gpkg")[["gis_bld_id", "PNU", "geometry"]].drop_duplicates("gis_bld_id")
 h = gpd.GeoDataFrame(t[t["house"] & t["gis_bld_id"].notna() & (t["emd_nm"] == REGION)].merge(b, on="gis_bld_id", suffixes=("", "_g")), geometry="geometry", crs=5186)
 h = h[h.geometry.area >= MIN_AREA]

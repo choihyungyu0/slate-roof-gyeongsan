@@ -35,7 +35,7 @@ fig, ax = plt.subplots(figsize=(6.3, 6.6), dpi=300)
 emd.plot(ax=ax, color=[GREYS[c] for c in emd["cls"]], edgecolor="k", linewidth=0.5)
 for _, r in emd[emd.geometry.area > 4e6].iterrows():
     p = r.geometry.representative_point()
-    ax.text(p.x, p.y, f"{r['emd_kor_nm']}\n{r['slate_houses']:,}", ha="center", va="center", fontsize=6.5,
+    ax.text(p.x, p.y, f"{r['emd_kor_nm']}\n{r['slate_sure']:,}~{r['slate_houses']:,}", ha="center", va="center", fontsize=6.5,
             color="w" if r["cls"] >= 3 else "k", fontweight="bold")
 x0, y0, x1, y1 = emd.total_bounds
 bx, by = x0 + (x1 - x0) * 0.02, y0 + (y1 - y0) * 0.03
@@ -45,13 +45,13 @@ ax.text(bx + 5000, by + 500, "5 km", ha="center", fontsize=6.5)
 nx, ny = x1 - (x1 - x0) * 0.04, y1 - (y1 - y0) * 0.03
 ax.annotate("N", xy=(nx, ny), xytext=(nx, ny - (y1 - y0) * 0.08), ha="center", va="center", fontsize=9, fontweight="bold",
             arrowprops=dict(arrowstyle="-|>", color="k", lw=1.2))
-ax.legend(handles=[Patch(facecolor=GREYS[i], edgecolor="k", label=LABELS[i]) for i in range(5)], title="슬레이트 주택 수",
+ax.legend(handles=[Patch(facecolor=GREYS[i], edgecolor="k", label=LABELS[i]) for i in range(5)], title="슬레이트 주택 수(최대)",
           loc="lower right", frameon=True, edgecolor="k", fontsize=7, title_fontsize=7.5)
 ax.set_axis_off()
 ax.set_aspect("equal")
-ax.set_title(f"경산시 읍면동별 대장 슬레이트 주택 수 (합계 {int(emd['slate_houses'].sum()):,}동)", fontsize=10, fontweight="bold", loc="left")
+ax.set_title(f"경산시 읍면동별 대장 슬레이트 주택 수 (확실 {int(emd['slate_sure'].sum()):,} ~ 최대 {int(emd['slate_houses'].sum()):,}동)", fontsize=10, fontweight="bold", loc="left")
 fig.text(0.02, 0.012, "자료: 국토교통부 건축HUB 건축물대장 표제부(2026-10-05 조회), 브이월드 법정 읍면동 경계.\n"
-         "주택류(단독·공동주택) 중 지붕이 슬레이트로 기재된 건축물 수(대장 기준, 현장 미확인). 미등재 건축물 제외.", fontsize=5.8, color="#222", va="bottom")
+         "대장 지붕 기재 정규화 결과(현장 미확인). 확실=슬레이트 단독 기재, 최대=혼합 기재 포함. 지도 숫자는 확실~최대. 미등재 건축물 제외.", fontsize=5.8, color="#222", va="bottom")
 fig.subplots_adjust(left=0.02, right=0.98, top=0.95, bottom=0.07)
 fig.savefig(FIG / "proposal_fig1.png", facecolor="w")
 plt.close(fig)
