@@ -5,9 +5,5 @@
 __pycache__/
 *.pyc
 
-# 원자료·타일·크롭은 올리지 않음 (용량, 브이월드 약관, 건물 단위 원자료)
-data/raw/*
-data/interim/*
-data/tiles/*
-data/crops/*
-!data/*/.gitkeep
+# 원자료·중간 산출·타일은 올리지 않음 (용량, 브이월드 약관, 건물 단위 원자료)
+data/
