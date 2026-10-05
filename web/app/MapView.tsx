@@ -3,6 +3,8 @@
 import maplibregl, { type LngLatBoundsLike, type MapGeoJSONFeature } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
+import Tour, { tourSeen } from "./Tour";
+
 // cat: 1=대장 슬레이트 주택(단독 기재), 3=혼합 기재 주택, 2=그 외 주택, 0=그 밖(비주택·대장 미연결)
 const CATS = [
   { cat: 1, label: "슬레이트 단독 기재 주택", color: "#f0703c" },
@@ -18,6 +20,7 @@ type Props = {
   roof?: string; etc?: string; rc?: string; how?: string; year?: number | null; yflag?: number; area?: number | null; sc?: number; st?: number;
   ps?: number; pr?: number; pn?: number; ca?: number; cr?: number; cs?: number; cd?: number; ce?: number; cc?: number; ds?: number; dd?: number; de?: number;
 };
+type Item = { id: number; p: Props; center: [number, number] };
 type Emd = { name: string; houses: number; sure: number; slate: number; share: number; bounds: LngLatBoundsLike; center: [number, number] };
 
 // 우선순위 점수 항목: 가중치와 근거 표시 (계산은 src/priority_score.py)
@@ -51,6 +54,11 @@ export default function MapView() {
   const [sel, setSel] = useState<Props | null>(null);
   const [ready, setReady] = useState(false);
   const [aerial, setAerial] = useState(Boolean(VWORLD_KEY));  // 키가 있으면 항공영상을 기본으로 켠다
+  const [tab, setTab] = useState<"info" | "list">("info");
+  const [items, setItems] = useState<Item[]>([]);  // 우선순위 점수가 있는 건물(점수 높은 순)
+  const [listEmd, setListEmd] = useState("전체");
+  const [listN, setListN] = useState(95);
+  const [tour, setTour] = useState(false);
 
   useEffect(() => {
     if (!el.current) return;
@@ -90,8 +98,17 @@ export default function MapView() {
       });
 
       const c: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
-      for (const f of bld.features) c[(f.properties as Props).cat]++;
+      const scored: Item[] = [];
+      for (const f of bld.features) {
+        const p = f.properties as Props;
+        c[p.cat]++;
+        if (p.ps != null) {
+          const b = ringBounds(f.geometry);
+          scored.push({ id: f.id as number, p, center: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] });
+        }
+      }
       setCounts(c);
+      setItems(scored.sort((a, b) => a.p.pr! - b.p.pr!));
       const list = emdJson.features.map((f): Emd => {
         const b = ringBounds(f.geometry);
         const p = f.properties as { emd_kor_nm: string; houses: number; slate_sure: number; slate_houses: number; slate_share_pct: number };
@@ -106,21 +123,45 @@ export default function MapView() {
         new maplibregl.Marker({ element: d }).setLngLat(e.center).addTo(map);
       }
       setReady(true);
+      if (!tourSeen()) setTour(true);  // 처음 온 사용자에게만 자동으로
     });
 
     map.on("click", "bld", (ev) => {
       const f = ev.features?.[0] as MapGeoJSONFeature | undefined;
       if (!f || f.id == null) return;
-      if (picked.current != null) map.setFeatureState({ source: "bld", id: picked.current }, { picked: false });
-      picked.current = f.id as number;
-      map.setFeatureState({ source: "bld", id: picked.current }, { picked: true });
-      setSel(f.properties as Props);
+      pick(f.id as number, f.properties as Props);
     });
     map.on("mouseenter", "bld", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "bld", () => { map.getCanvas().style.cursor = ""; });
     return () => map.remove();
   }, []);
 
+  const pick = (id: number, props: Props) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (picked.current != null) map.setFeatureState({ source: "bld", id: picked.current }, { picked: false });
+    picked.current = id;
+    map.setFeatureState({ source: "bld", id }, { picked: true });
+    setSel(props);
+    setTab("info");
+  };
+  const visit = (it: Item) => {
+    mapRef.current?.flyTo({ center: it.center, zoom: 18, pitch: 55, bearing: -18, duration: 1200 });
+    pick(it.id, it.p);
+  };
+  const listAll = listEmd === "전체" ? items : items.filter((it) => it.p.emd === listEmd);
+  const listShown = listAll.slice(0, listN);
+  const downloadList = () => {
+    const head = ["목록순번", "시전체순위", "점수", "읍면", "분류", "지붕자유기재", "사용승인연도", "건축면적", "학교거리m", "어린이집거리m", "경로당거리m", "경도", "위도"];
+    const rows = listShown.map((it, i) => [i + 1, it.p.pr, it.p.ps, it.p.emd, it.p.rc, `"${(it.p.etc ?? "").replace(/"/g, '""')}"`,
+      it.p.year ?? "", it.p.area ?? "", it.p.ds, it.p.dd, it.p.de, it.center[0].toFixed(6), it.center[1].toFixed(6)].join(","));
+    const blob = new Blob(["﻿" + [head.join(","), ...rows].join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `찾아가는신청목록_${listEmd}_${listShown.length}동.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
   const flyTo = (name: string) => {
     const e = emds.find((x) => x.name === name);
     if (e) mapRef.current?.fitBounds(e.bounds, { padding: 40, pitch: 50, bearing: -18, duration: 1200 });
@@ -145,6 +186,7 @@ export default function MapView() {
             {emds.map((e) => <option key={e.name} value={e.name}>{e.name} · 슬레이트 주택 {e.sure.toLocaleString()}~{e.slate.toLocaleString()}동</option>)}
           </select>
           {VWORLD_KEY && <button aria-pressed={aerial} onClick={toggleAerial}>항공영상</button>}
+          <button onClick={() => setTour(true)}>사용법</button>
         </div>
         <div className="legend">
           {CATS.map((c) => (
@@ -154,7 +196,40 @@ export default function MapView() {
         </div>
       </div>
       <aside>
-        {sel && cat ? (
+        <div className="tabs" role="tablist">
+          <button role="tab" aria-selected={tab === "info"} onClick={() => setTab("info")}>건물 정보</button>
+          <button role="tab" aria-selected={tab === "list"} onClick={() => setTab("list")}>찾아가는 신청 목록</button>
+        </div>
+        {tab === "list" ? (
+          <>
+            <p className="note">대장에 슬레이트로 적힌 주택을 우선순위 점수 순으로 보여줍니다. 지원 사업을 먼저 안내하러 갈 집을 고르는 용도이며, 실제 슬레이트 여부는 현장에서 확인해야 합니다.</p>
+            <div className="filters">
+              <select aria-label="읍·면" value={listEmd} onChange={(e) => setListEmd(e.target.value)}>
+                <option value="전체">읍·면 8곳 전체</option>
+                {emds.map((e) => <option key={e.name} value={e.name}>{e.name}</option>)}
+              </select>
+              <select aria-label="표시 수" value={listN} onChange={(e) => setListN(Number(e.target.value))}>
+                <option value={30}>상위 30동</option>
+                <option value={95}>상위 95동 (2026년 지원 물량)</option>
+                <option value={300}>상위 300동</option>
+              </select>
+              <button onClick={downloadList} disabled={!listShown.length}>CSV</button>
+            </div>
+            <p className="note">{listEmd} 대상 {listAll.length.toLocaleString()}동 중 {listShown.length.toLocaleString()}동 표시 · 행을 누르면 지도에서 그 건물로 이동합니다</p>
+            <table className="visit">
+              <thead><tr><th>#</th><th>읍·면</th><th>기재</th><th>사용승인</th><th>점수</th></tr></thead>
+              <tbody>
+                {listShown.map((it, i) => (
+                  <tr key={it.id} className="row" onClick={() => visit(it)}>
+                    <td>{i + 1}</td><td>{it.p.emd}</td><td>{it.p.rc === "혼합" ? "혼합" : "단독"}</td>
+                    <td>{it.p.year ? `${it.p.year}` : "불명"}</td><td>{it.p.ps!.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="note">순위는 건물 도형과 연결된 주택만 대상입니다. 주소·지번은 표시하지 않으며, CSV에도 건물 위치(좌표)까지만 들어갑니다. 가중치는 기본값입니다.</p>
+          </>
+        ) : sel && cat ? (
           <>
             <span className="tag" style={{ background: cat.color }}>{cat.label}</span>
             <h3>건축물대장</h3>
@@ -219,6 +294,7 @@ export default function MapView() {
           </>
         )}
       </aside>
+      <Tour open={tour} onClose={() => setTour(false)} />
     </div>
   );
 }
