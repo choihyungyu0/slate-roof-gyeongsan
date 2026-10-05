@@ -32,6 +32,9 @@ def load_poi(key: str) -> gpd.GeoSeries | None:
             break
         except UnicodeDecodeError:
             continue
+    kind = next((c for c in d.columns if "시설유형" in c), None)
+    if key == "senior" and kind:  # 마을회관은 빼고 경로당만
+        d = d[d[kind].fillna("").str.contains("경로당")]
     lat = next(c for c in d.columns if "위도" in c)
     lon = next(c for c in d.columns if "경도" in c)
     d = d.assign(lat=pd.to_numeric(d[lat], errors="coerce"), lon=pd.to_numeric(d[lon], errors="coerce")).dropna(subset=["lat", "lon"])
