@@ -27,6 +27,11 @@ t = pd.read_parquet(PRO / "title_joined.parquet")
 t = t[t["gis_bld_id"].notna()].drop_duplicates("gis_bld_id")
 b = b.merge(t[["gis_bld_id", "house", "slate", "slate_sure", "roof_class", "slate_code", "slate_text", "mainPurpsCdNm", "roofCdNm", "etcRoof", "year", "year_raw", "archArea", "match_how"]],
             on="gis_bld_id", how="left")
+# 우선순위 점수(정책 점수) — 위치가 있는 대장 슬레이트 주택에만 있다
+ps = pd.read_csv(PRO / "priority_scores.csv", dtype={"gis_bld_id": str})
+ps = ps[ps["rank"].notna()].drop_duplicates("gis_bld_id")
+PS_N = len(ps)
+b = b.merge(ps[["gis_bld_id", "rank", "score", "c_age", "c_area", "c_school", "c_daycare", "c_senior", "c_certainty", "dist_school_m", "dist_daycare_m", "dist_senior_m"]], on="gis_bld_id", how="left")
 house, slate = b["house"].fillna(False).astype(bool), b["slate"].fillna(False).astype(bool)
 sure = b["slate_sure"].fillna(False).astype(bool)
 b["cat"] = np.select([house & sure, house & slate, house], [1, 3, 2], 0)
@@ -43,6 +48,11 @@ for i, r in enumerate(g.itertuples(), 1):
     p = {"cat": int(r.cat), "h": float(r.h), "he": int(r.he), "hsrc": r.hsrc, "emd": r.emd,
          "reg": 0 if pd.isna(r.match_how) else 1}
     if p["reg"]:
+        if not pd.isna(r.rank):
+            p.update(ps=float(r.score), pr=int(r.rank), pn=PS_N,
+                     ca=round(float(r.c_age), 2), cr=round(float(r.c_area), 2), cs=round(float(r.c_school), 2),
+                     cd=round(float(r.c_daycare), 2), ce=round(float(r.c_senior), 2), cc=round(float(r.c_certainty), 2),
+                     ds=int(r.dist_school_m), dd=int(r.dist_daycare_m), de=int(r.dist_senior_m))
         p.update(use=r.mainPurpsCdNm, roof=r.roofCdNm, etc=r.etcRoof, rc=r.roof_class, how=r.match_how,
                  year=None if pd.isna(r.year) else int(r.year),
                  yflag=int(pd.isna(r.year) and not pd.isna(r.year_raw)),
@@ -60,5 +70,6 @@ e["shown"] = e["emd_kor_nm"].map(g[g["cat"].isin([1, 3])].groupby("emd").size())
 e[["emd_cd", "emd_kor_nm", "houses", "slate_sure", "slate_houses", "slate_share_pct", "shown", "geometry"]].to_file(OUT / "emd.geojson", driver="GeoJSON")
 print(f"건물 {len(feats):,}동 → {(OUT / 'buildings.geojson').stat().st_size / 1e6:.1f} MB")
 print("cat:", g["cat"].map({1: "슬레이트 주택(확실)", 3: "혼합 기재 주택", 2: "그 외 주택", 0: "그 밖"}).value_counts().to_dict())
+print("우선순위 점수가 붙은 건물:", int(g["rank"].notna().sum()), "/ 순위 대상", PS_N)
 print("높이 출처:", g["hsrc"].value_counts().to_dict())
 print("슬레이트 주택 높이 출처:", g.loc[g["cat"] == 1, "hsrc"].value_counts().to_dict())

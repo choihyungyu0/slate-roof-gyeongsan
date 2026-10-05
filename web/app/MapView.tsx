@@ -16,8 +16,19 @@ const VWORLD_KEY = process.env.NEXT_PUBLIC_VWORLD_KEY;
 type Props = {
   cat: number; h: number; he: number; hsrc: string; emd: string; reg: number; use?: string | null;
   roof?: string; etc?: string; rc?: string; how?: string; year?: number | null; yflag?: number; area?: number | null; sc?: number; st?: number;
+  ps?: number; pr?: number; pn?: number; ca?: number; cr?: number; cs?: number; cd?: number; ce?: number; cc?: number; ds?: number; dd?: number; de?: number;
 };
 type Emd = { name: string; houses: number; sure: number; slate: number; share: number; bounds: LngLatBoundsLike; center: [number, number] };
+
+// 우선순위 점수 항목: 가중치와 근거 표시 (계산은 src/priority_score.py)
+const SCORE_PARTS: { key: "ca" | "cr" | "cs" | "cd" | "ce" | "cc"; label: string; w: string; basis: (p: Props) => string }[] = [
+  { key: "ca", label: "노후도", w: "0.30", basis: (p) => (p.year ? `${p.year}년 사용승인` : "연도 불명(중간값)") },
+  { key: "cr", label: "지붕 면적", w: "0.15", basis: (p) => (p.area != null ? `건축면적 ${p.area}㎡` : "미확인") },
+  { key: "cs", label: "학교 거리", w: "0.20", basis: (p) => `${p.ds!.toLocaleString()}m` },
+  { key: "cd", label: "어린이집 거리", w: "0.15", basis: (p) => `${p.dd!.toLocaleString()}m` },
+  { key: "ce", label: "경로당 거리", w: "0.10", basis: (p) => `${p.de!.toLocaleString()}m` },
+  { key: "cc", label: "기재 확실성", w: "0.10", basis: (p) => p.rc ?? "" },
+];
 
 function ringBounds(geom: GeoJSON.Geometry): [number, number, number, number] {
   let x0 = 180, y0 = 90, x1 = -180, y1 = -90;
@@ -164,6 +175,21 @@ export default function MapView() {
               <>
                 <dl><dt>읍·면</dt><dd>{sel.emd}</dd><dt>GIS 용도</dt><dd>{sel.use || "미확인"}</dd></dl>
                 <p className="note">이 건물 도형과 연결된 건축물대장 표제부가 없습니다. 지붕 정보는 알 수 없습니다.</p>
+              </>
+            )}
+            {sel.ps != null && (
+              <>
+                <h3>우선순위 점수 (정책 점수)</h3>
+                <div className="score"><b>{sel.ps.toFixed(1)}</b><span>/ 100 · {sel.pr!.toLocaleString()}위 / {sel.pn!.toLocaleString()}동</span></div>
+                <table className="parts">
+                  <thead><tr><th>항목 (가중치)</th><th>근거</th><th>항목 점수</th></tr></thead>
+                  <tbody>
+                    {SCORE_PARTS.map((p) => (
+                      <tr key={p.key}><td>{p.label} ({p.w})</td><td>{p.basis(sel)}</td><td>{Math.round((sel[p.key] ?? 0) * 100)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="note">먼저 찾아갈 순서를 정하는 정책 점수입니다. 가중치는 기본값이며 정확도가 있는 예측이 아닙니다. 거리는 직선거리입니다.</p>
               </>
             )}
             <h3>높이</h3>

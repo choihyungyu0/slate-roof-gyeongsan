@@ -45,3 +45,8 @@ tr.row:hover td { color: var(--pick); }
   .app { grid-template-columns: 1fr; grid-template-rows: 58vh 1fr; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
 }
+.score { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.score b { font-size: 28px; color: var(--pick); font-variant-numeric: tabular-nums; }
+.score span { color: var(--dim); font-size: 12px; }
+.parts td, .parts th { font-size: 12.5px; }
+.parts td:nth-child(2), .parts th:nth-child(2) { text-align: left; color: var(--dim); padding-left: 8px; }
