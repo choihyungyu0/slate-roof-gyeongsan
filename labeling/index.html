@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지붕 판독</title>
+<style>
+  :root { --bg: #17181a; --panel: #222427; --line: #3a3d42; --text: #ecebe7; --dim: #a3a29c; --accent: #f2c230; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 1.25rem; margin: 0 0 12px; }
+  p, li { color: var(--dim); line-height: 1.6; font-size: .95rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  input[type=text] { width: 100%; padding: 10px 12px; font-size: 1rem; border-radius: 8px; border: 1px solid var(--line); background: #111; color: var(--text); }
+  button { font: inherit; color: var(--text); background: #2d3035; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #17181a; border-color: var(--accent); font-weight: 700; }
+  kbd { display: inline-block; min-width: 1.5em; padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; background: #111; font-size: .85em; text-align: center; color: var(--text); }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; background: #2d3035; border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0; }
+  .imgwrap { width: min(100%, max(280px, calc(100vh - 250px))); margin: 0 auto; aspect-ratio: 1; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .imgwrap img { width: 100%; height: 100%; display: block; image-rendering: auto; }
+  .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .choices button { padding: 16px 8px; font-size: 1.05rem; font-weight: 700; }
+  .choices button.on { background: var(--accent); color: #17181a; border-color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  .row .sp { flex: 1; }
+  .hint { font-size: .85rem; color: var(--dim); margin-top: 10px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <section id="start" class="card">
+    <h1>지붕 판독</h1>
+    <p>항공영상에서 <b>노란 윤곽선 안쪽 지붕</b>이 슬레이트인지 판단합니다. 윤곽선은 <kbd>Space</kbd>로 켜고 끌 수 있습니다.</p>
+    <ul>
+      <li><kbd>1</kbd> 슬레이트 · <kbd>2</kbd> 슬레이트 아님 · <kbd>3</kbd> 판독불가(가려짐·흐림·건물 없음 등 판단할 수 없을 때)</li>
+      <li><kbd>←</kbd> 이전 · <kbd>→</kbd> 다음(이미 판정한 것만)</li>
+      <li>진행 상황은 이 브라우저에 자동 저장됩니다. 끝나면 CSV를 내려받아 전달해 주세요.</li>
+      <li>다른 판독자와 상의하지 말고 혼자 판단해 주세요.</li>
+    </ul>
+    <p><label for="rater">판독자 이름</label></p>
+    <input id="rater" type="text" autocomplete="off" placeholder="예: 홍길동">
+    <div class="row"><button id="begin" class="primary">시작</button></div>
+  </section>
+
+  <section id="work" class="hidden">
+    <div class="top"><span id="pos"></span><span id="who"></span></div>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="imgwrap"><img id="img" alt="지붕 항공영상"></div>
+    <div class="choices">
+      <button data-v="slate"><kbd>1</kbd> 슬레이트</button>
+      <button data-v="not_slate"><kbd>2</kbd> 슬레이트 아님</button>
+      <button data-v="unreadable"><kbd>3</kbd> 판독불가</button>
+    </div>
+    <div class="row">
+      <button id="prev">← 이전</button>
+      <button id="next">다음 →</button>
+      <button id="outline">윤곽선 끄기</button>
+      <span class="sp"></span>
+      <button id="csv">CSV 내려받기</button>
+    </div>
+    <p class="hint" id="status"></p>
+  </section>
+</main>
+<script>
+const IDS = ["R001", "R002", "R003", "R004", "R005", "R006", "R007", "R008", "R009", "R010", "R011", "R012", "R013", "R014", "R015", "R016", "R017", "R018", "R019", "R020", "R021", "R022", "R023", "R024", "R025", "R026", "R027", "R028", "R029", "R030", "R031", "R032", "R033", "R034", "R035", "R036", "R037", "R038", "R039", "R040", "R041", "R042", "R043", "R044", "R045", "R046", "R047", "R048", "R049", "R050", "R051", "R052", "R053", "R054", "R055", "R056", "R057", "R058", "R059", "R060", "R061", "R062", "R063", "R064", "R065", "R066", "R067", "R068", "R069", "R070", "R071", "R072", "R073", "R074", "R075", "R076", "R077", "R078", "R079", "R080", "R081", "R082", "R083", "R084", "R085", "R086", "R087", "R088", "R089", "R090", "R091", "R092", "R093", "R094", "R095", "R096", "R097", "R098", "R099", "R100", "R101", "R102", "R103", "R104", "R105", "R106", "R107", "R108", "R109", "R110", "R111", "R112", "R113", "R114", "R115", "R116", "R117", "R118", "R119", "R120", "R121", "R122", "R123", "R124", "R125", "R126", "R127", "R128", "R129", "R130", "R131", "R132", "R133", "R134", "R135", "R136", "R137", "R138", "R139", "R140", "R141", "R142", "R143", "R144", "R145", "R146", "R147", "R148", "R149", "R150", "R151", "R152", "R153", "R154", "R155", "R156", "R157", "R158", "R159", "R160", "R161", "R162", "R163", "R164", "R165", "R166", "R167", "R168", "R169", "R170", "R171", "R172", "R173", "R174", "R175", "R176", "R177", "R178", "R179", "R180", "R181", "R182", "R183", "R184", "R185", "R186", "R187", "R188", "R189", "R190", "R191", "R192", "R193", "R194", "R195", "R196", "R197", "R198", "R199", "R200", "R201", "R202", "R203", "R204", "R205", "R206", "R207", "R208", "R209", "R210", "R211", "R212", "R213", "R214", "R215", "R216", "R217", "R218", "R219", "R220", "R221", "R222", "R223", "R224", "R225", "R226", "R227", "R228", "R229", "R230", "R231", "R232", "R233", "R234", "R235", "R236", "R237", "R238", "R239", "R240", "R241", "R242", "R243", "R244", "R245", "R246", "R247", "R248", "R249", "R250", "R251", "R252", "R253", "R254", "R255", "R256", "R257", "R258", "R259", "R260", "R261", "R262", "R263", "R264", "R265", "R266", "R267", "R268", "R269", "R270", "R271", "R272", "R273", "R274", "R275", "R276", "R277", "R278", "R279", "R280", "R281", "R282", "R283", "R284", "R285", "R286", "R287", "R288", "R289", "R290", "R291", "R292", "R293", "R294", "R295", "R296", "R297", "R298", "R299", "R300"];
+const VERDICTS = { "1": "slate", "2": "not_slate", "3": "unreadable" };
+const $ = (id) => document.getElementById(id);
+let rater = "", answers = {}, i = 0, outline = true;
+
+const storeKey = () => "roof-label-v1:" + rater;
+function load() { try { answers = JSON.parse(localStorage.getItem(storeKey()) || "{}"); } catch (e) { answers = {}; } }
+function save() { try { localStorage.setItem(storeKey(), JSON.stringify(answers)); } catch (e) { /* 저장 불가 환경: CSV로만 보존 */ } }
+const doneCount = () => IDS.filter((id) => answers[id]).length;
+
+function render() {
+  const id = IDS[i], a = answers[id];
+  $("img").src = "img/" + id + (outline ? "_o" : "") + ".jpg";
+  $("pos").textContent = (i + 1) + " / " + IDS.length + "  ·  " + id;
+  $("who").textContent = "판독자: " + rater;
+  $("prog").style.width = (doneCount() / IDS.length * 100) + "%";
+  document.querySelectorAll(".choices button").forEach((b) => b.classList.toggle("on", !!a && a.v === b.dataset.v));
+  $("prev").disabled = i === 0;
+  $("next").disabled = !a || i === IDS.length - 1;
+  $("outline").textContent = outline ? "윤곽선 끄기" : "윤곽선 켜기";
+  const n = doneCount();
+  $("status").textContent = n === IDS.length ? "모두 판정했습니다. CSV를 내려받아 전달해 주세요." : "판정 " + n + " / " + IDS.length;
+}
+
+function answer(v) {
+  answers[IDS[i]] = { v: v, t: new Date().toISOString() };
+  save();
+  if (i < IDS.length - 1) i++;
+  render();
+}
+
+function downloadCsv() {
+  const esc = (s) => '"' + String(s).replace(/"/g, '""') + '"';
+  const rows = ["rater,id,verdict,timestamp"];
+  IDS.forEach((id) => { const a = answers[id]; if (a) rows.push([esc(rater), id, a.v, a.t].join(",")); });
+  const blob = new Blob(["﻿" + rows.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "labels_" + rater.replace(/[^\w가-힣-]+/g, "_") + "_" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function begin() {
+  rater = $("rater").value.trim();
+  if (!rater) { $("rater").focus(); return; }
+  load();
+  const first = IDS.findIndex((id) => !answers[id]);
+  i = first === -1 ? IDS.length - 1 : first;
+  $("start").classList.add("hidden"); $("work").classList.remove("hidden");
+  render();
+}
+
+$("begin").addEventListener("click", begin);
+$("rater").addEventListener("keydown", (e) => { if (e.key === "Enter") begin(); });
+document.querySelectorAll(".choices button").forEach((b) => b.addEventListener("click", () => answer(b.dataset.v)));
+$("prev").addEventListener("click", () => { if (i > 0) { i--; render(); } });
+$("next").addEventListener("click", () => { if (answers[IDS[i]] && i < IDS.length - 1) { i++; render(); } });
+$("outline").addEventListener("click", () => { outline = !outline; render(); });
+$("csv").addEventListener("click", downloadCsv);
+document.addEventListener("keydown", (e) => {
+  if ($("work").classList.contains("hidden") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (VERDICTS[e.key]) { e.preventDefault(); answer(VERDICTS[e.key]); }
+  else if (e.key === "ArrowLeft") $("prev").click();
+  else if (e.key === "ArrowRight") $("next").click();
+  else if (e.key === " ") { e.preventDefault(); $("outline").click(); }
+});
+</script>
+</body>
+</html>

@@ -68,9 +68,47 @@ def crop_polygon(geom, z: int = 19, margin_m: float = 2.0, size: int = 224) -> I
     canvas = Image.new("RGB", ((tx1 - tx0 + 1) * TILE, (ty1 - ty0 + 1) * TILE))
     for tx in range(tx0, tx1 + 1):
         for ty in range(ty0, ty1 + 1):
-            t = get_tile(z, tx, ty)
+            t = _get(z, tx, ty)
             if t is None:
                 return None
             canvas.paste(t, ((tx - tx0) * TILE, (ty - ty0) * TILE))
     box = (px0 - tx0 * TILE, py0 - ty0 * TILE, px1 - tx0 * TILE, py1 - ty0 * TILE)
     return canvas.crop(tuple(round(v) for v in box)).resize((size, size), Image.BICUBIC)
+
+
+OFFLINE = os.environ.get("TILES_OFFLINE") == "1"  # 1이면 캐시에 없는 타일을 새로 받지 않음
+
+
+def _get(z: int, x: int, y: int) -> Image.Image | None:
+    if OFFLINE and not (TILE_DIR / str(z) / str(x) / f"{y}.jpeg").exists():
+        return None
+    return get_tile(z, x, y)
+
+
+def crop_context(geom, z: int = 19, margin_m: float = 8.0, size: int = 448):
+    """판독용 크롭: 여백을 넓게 준 정사각 영상과, 같은 영상 좌표계의 폴리곤 외곽선 좌표를 함께 반환.
+
+    반환: (PIL.Image, [(x, y), ...]) 또는 타일이 없으면 None
+    """
+    minx, miny, maxx, maxy = geom.bounds
+    cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
+    half = max(maxx - minx, maxy - miny) / 2 + margin_m
+    xs, ys = _to3857.transform([cx - half, cx + half, cx - half, cx + half],
+                               [cy - half, cy - half, cy + half, cy + half])
+    px0, py0 = _px(min(xs), max(ys), z)
+    px1, py1 = _px(max(xs), min(ys), z)
+    tx0, ty0, tx1, ty1 = int(px0 // TILE), int(py0 // TILE), int(px1 // TILE), int(py1 // TILE)
+    canvas = Image.new("RGB", ((tx1 - tx0 + 1) * TILE, (ty1 - ty0 + 1) * TILE))
+    for tx in range(tx0, tx1 + 1):
+        for ty in range(ty0, ty1 + 1):
+            t = _get(z, tx, ty)
+            if t is None:
+                return None
+            canvas.paste(t, ((tx - tx0) * TILE, (ty - ty0) * TILE))
+    box = tuple(round(v) for v in (px0 - tx0 * TILE, py0 - ty0 * TILE, px1 - tx0 * TILE, py1 - ty0 * TILE))
+    img = canvas.crop(box).resize((size, size), Image.BICUBIC)
+    poly = geom.geoms[0] if geom.geom_type == "MultiPolygon" else geom
+    ex, ey = _to3857.transform(*poly.exterior.coords.xy)
+    sx, sy = size / (box[2] - box[0]), size / (box[3] - box[1])
+    ring = [((_px(a, b, z)[0] - tx0 * TILE - box[0]) * sx, (_px(a, b, z)[1] - ty0 * TILE - box[1]) * sy) for a, b in zip(ex, ey)]
+    return img, ring

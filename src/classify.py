@@ -129,7 +129,7 @@ def grid(sub: pd.DataFrame, title: str, name: str) -> None:
     plt.close(fig)
 
 
-grid(ds[ds["y"] == 1].nsmallest(20, "proba"), "대장=슬레이트인데 모델=아님 (상위 20) — 대장 미갱신(이미 개량·철거) 후보", "disagree_register_slate_model_not.png")
-grid(ds[ds["y"] == 0].nlargest(20, "proba"), "대장=슬레이트 아님인데 모델=슬레이트 (상위 20) — 숨은 슬레이트 후보", "disagree_register_not_model_slate.png")
+grid(ds[ds["y"] == 1].nsmallest(20, "proba"), "대장=슬레이트인데 모델=아님 (모델 확률 하위 20)", "disagree_register_slate_model_not.png")
+grid(ds[ds["y"] == 0].nlargest(20, "proba"), "대장=슬레이트 아님인데 모델=슬레이트 (모델 확률 상위 20)", "disagree_register_not_model_slate.png")
 grid(ds[ds["y"] == 1].nlargest(20, "proba"), "참고: 대장=슬레이트이고 모델도 슬레이트 (확률 상위 20)", "agree_slate_top20.png")
 print("저장:", *(p.name for p in sorted(FIG.iterdir())))

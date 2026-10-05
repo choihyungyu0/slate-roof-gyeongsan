@@ -19,7 +19,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 # A에서 실제 값을 확인한 뒤 확정한 표기 (etcRoof 자유 텍스트의 슬레이트 변형)
 SLATE_RE = r"슬레이트|슬레트|슬래이트|슬래트|스레이트|스레트|스래이트|스래트|스레이드|슬레이드|스레뜨|쓰레트|스렛트|스레토|석면|slate"
 HOUSE = ["단독주택", "공동주택"]
-SUPPORT_2026 = 95  # 경산시 2026년 슬레이트 주택 철거 지원 물량(동) — 사용자 제공값
+SUPPORT_2026 = 95  # 경산시 2026년 주택 슬레이트 철거 지원 물량(동) — 아주경제 2026.4.11 보도(사용자 제공, 원문 미열람)
+YEAR_MIN = 1910    # 사용승인연도 1900~1909 는 실제 준공연도로 보기 어려워 "연도 불명"으로 분리
 
 pd.set_option("display.width", 200)
 stats: dict = {}
@@ -68,7 +69,8 @@ t["emd_cd"] = "47290" + t["bjdongCd"].str[:3]
 t["emd_nm"] = t["emd_cd"].map(emd_nm)
 t["house"] = t["mainPurpsCdNm"].isin(HOUSE)
 y = pd.to_numeric(t["useAprDay"].str[:4], errors="coerce")
-t["year"] = y.where((y >= 1900) & (y <= 2026))
+t["year_raw"] = y
+t["year"] = y.where((y >= YEAR_MIN) & (y <= 2026))
 sh = t[t["house"] & t["slate"]].copy()
 
 section("B. 슬레이트 주택")
@@ -88,18 +90,23 @@ by = by.sort_values("slate_houses", ascending=False)
 by.to_csv(OUT / "slate_by_dong.csv", index=False, encoding="utf-8-sig")
 print(by.to_string(index=False))
 
-dec = (sh["year"] // 10 * 10).astype("Int64").astype(str).replace("<NA>", "미확인") + np.where(sh["year"].notna(), "년대", "")
+dec = (sh["year"] // 10 * 10).astype("Int64").astype(str).replace("<NA>", "연도 불명") + np.where(sh["year"].notna(), "년대", "")
 dec = dec.value_counts().sort_index().rename_axis("decade").reset_index(name="n")
 dec.to_csv(OUT / "slate_by_decade.csv", index=False, encoding="utf-8-sig")
 print("\n사용승인연도 분포:")
 print(dec.to_string(index=False))
+n_1900s = int(sh["year_raw"].between(1900, 1909).sum())
+n_known, n_pre90 = int(sh["year"].notna().sum()), int((sh["year"] < 1990).sum())
+print("연도 불명:", int(sh["year"].isna().sum()), "= 1900~1909 기재", n_1900s, "+ 빈값·기타", int(sh["year"].isna().sum()) - n_1900s)
+print(f"1990년 이전: {n_pre90:,} / 연도 확인 {n_known:,} = {n_pre90 / n_known:.1%} | 중앙값 {sh['year'].median():.0f}")
 n_main = int(sh["mainAtchGbCdNm"].eq("주건축물").sum())
 print(f"\n2026년 지원 물량 {SUPPORT_2026}동 기준 소요: 전체 {len(sh):,}동 → {len(sh) / SUPPORT_2026:.1f}년, "
       f"주건축물만 {n_main:,}동 → {n_main / SUPPORT_2026:.1f}년")
 stats.update(house_rows=int(t["house"].sum()), slate_house=len(sh), slate_house_main=n_main,
              years_all=round(len(sh) / SUPPORT_2026, 1), years_main=round(n_main / SUPPORT_2026, 1),
              slate_house_year_known=int(sh["year"].notna().sum()),
-             slate_house_pre1990=int((sh["year"] < 1990).sum()),
+             slate_house_pre1990=n_pre90, slate_house_year_unknown=int(sh["year"].isna().sum()),
+             slate_house_year_1900s=n_1900s, slate_house_median_year=float(sh["year"].median()),
              top_emd=by.head(5)[["emd_nm", "slate_houses"]].values.tolist())
 
 # ---------- C. 공간 조인 ----------
@@ -165,7 +172,7 @@ for pnu, tg in t[t["gis_bld_id"].isna() & t["pnu_hit"]].groupby("PNU"):
         ti.add(i), ci.add(j)
         t.loc[tg.index[i], ["gis_bld_id", "match_how"]] = [cand["gis_bld_id"].iloc[j], "필지+면적"]
 t.loc[t["match_how"].eq("미매칭") & t["pnu_hit"], "match_how"] = "필지만 일치(동 특정 불가)"
-t.loc[~t["pnu_hit"], "match_how"] = "필지 없음"
+t.loc[~t["pnu_hit"], "match_how"] = "대장-도형 불일치(필지에 도형 없음)"
 
 print("\n건물(동) 단위 매칭 결과 — 표제부 전체:")
 print(t["match_how"].value_counts().to_string())
