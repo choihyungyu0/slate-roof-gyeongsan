@@ -1,12 +1,9 @@
 """웹 데모용 데이터 내보내기 → web/public/data/
 
-- web/private-data/buildings.part{i}.json.gz : 경산시 전체 건물 도형(EPSG:4326), 2만 동씩 나눈 gzip. 주소·지번·PNU는 넣지 않는다.
-  건물 단위 자료는 공개 폴더(public)에 두지 않는다. /api/buildings 가 접근 키를 확인한 뒤에만 내려준다.
-  cat: 1=대장 슬레이트 주택(확실: 슬레이트 단독·코드만), 3=혼합 기재 주택, 2=그 외 주택, 0=그 밖(비주택·대장 미연결)
-  h: 높이(m) — GIS 높이 → 없으면 지상층수×3 → 둘 다 없으면 3. he: 높이를 추정했으면 1
+- buildings.part{i}.json + buildings.manifest.json : 경산시 전체 건물 도형(EPSG:4326), 2만 동씩 나눈 조각. 주소·지번·PNU는 넣지 않는다.
 - emd.geojson : 읍·면·동 36곳 경계와 집계
 """
-import gzip
+import shutil
 import json
 from pathlib import Path
 
@@ -62,27 +59,25 @@ for i, r in enumerate(g.itertuples(), 1):
     else:
         p.update(use=None if pd.isna(r.purps_nm) else r.purps_nm)
     feats.append({"type": "Feature", "id": i, "properties": p, "geometry": r.geometry.__geo_interface__})
-# 건물 단위 자료: 공개 폴더가 아닌 private-data 에 조각으로 저장
-PRIV = ROOT / "web" / "private-data"
-PRIV.mkdir(parents=True, exist_ok=True)
-for old in PRIV.glob("buildings.part*.json.gz"):
-    old.unlink()
+# 건물 단위 자료: 2만 동씩 나눠 public/data 에 둔다 (2026-10-06 사용자 결정으로 접근 키 없이 공개)
 (OUT / "buildings.geojson").unlink(missing_ok=True)
+for old in OUT.glob("buildings.part*.json"):
+    old.unlink()
+shutil.rmtree(ROOT / "web" / "private-data", ignore_errors=True)
 PART = 20000
 sizes = []
 for k in range(0, len(feats), PART):
-    raw = json.dumps({"type": "FeatureCollection", "features": feats[k:k + PART]}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    f = PRIV / f"buildings.part{k // PART}.json.gz"
-    f.write_bytes(gzip.compress(raw, 9))
-    sizes.append(round(f.stat().st_size / 1e6, 2))
-(PRIV / "manifest.json").write_text(json.dumps({"parts": len(sizes), "features": len(feats)}), encoding="utf-8")
+    f = OUT / f"buildings.part{k // PART}.json"
+    f.write_text(json.dumps({"type": "FeatureCollection", "features": feats[k:k + PART]}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    sizes.append(round(f.stat().st_size / 1e6, 1))
+(OUT / "buildings.manifest.json").write_text(json.dumps({"parts": len(sizes), "features": len(feats)}), encoding="utf-8")
 
 by = pd.read_csv(PRO / "slate_by_dong.csv", dtype={"emd_cd": str})
 e = emd.merge(by[["emd_cd", "houses", "slate_sure", "slate_houses", "slate_share_pct"]], on="emd_cd").to_crs(4326)
 e["geometry"] = set_precision(e.geometry.simplify(0.0001).values, 1e-6)
 e["shown"] = e["emd_kor_nm"].map(g[g["cat"].isin([1, 3])].groupby("emd").size())
 e[["emd_cd", "emd_kor_nm", "houses", "slate_sure", "slate_houses", "slate_share_pct", "shown", "geometry"]].to_file(OUT / "emd.geojson", driver="GeoJSON")
-print(f"건물 {len(feats):,}동 → private-data 조각 {len(sizes)}개 (gzip MB: {sizes})")
+print(f"건물 {len(feats):,}동 → public/data 조각 {len(sizes)}개 (MB: {sizes})")
 print("cat:", g["cat"].map({1: "슬레이트 주택(확실)", 3: "혼합 기재 주택", 2: "그 외 주택", 0: "그 밖"}).value_counts().to_dict())
 print("우선순위 점수가 붙은 건물:", int(g["rank"].notna().sum()), "/ 순위 대상", PS_N)
 print("높이 출처:", g["hsrc"].value_counts().to_dict())

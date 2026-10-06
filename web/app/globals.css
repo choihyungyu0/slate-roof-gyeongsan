@@ -88,3 +88,5 @@ a.adminlink:hover, .gate a:hover { color: var(--pick); }
 .gate-actions button { background: var(--pick); color: #17181a; border-color: var(--pick); font-weight: 700; padding: 9px 18px; }
 .collabel { color: #17181a; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; line-height: 1.25; background: rgba(255, 255, 255, .82); border-radius: 6px; padding: 3px 7px; pointer-events: none; }
 .collabel b { display: block; font-size: 13px; }
+a.go { display: block; margin-top: 12px; padding: 11px 14px; border-radius: 8px; background: var(--pick); color: #17181a; font-weight: 700; text-align: center; text-decoration: none; }
+.brand a { color: inherit; text-decoration: none; }

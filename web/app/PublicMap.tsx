@@ -3,7 +3,7 @@
 import maplibregl from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
-// 공개 화면: 읍·면·동 단위 집계만 보여준다. 건물 하나하나의 위치·기록은 싣지 않는다.
+// 첫 화면: 읍·면·동 단위 집계. 건물 단위 지도(/map)로 들어가는 링크를 둔다.
 const SURE = "#f0703c";   // 확실(슬레이트 단독 기재)
 const MIXED = "#f2c08a";  // 혼합 기재까지(최대)
 const PICK = "#ffe066";
@@ -128,8 +128,8 @@ export default function PublicMap() {
             ))}
           </tbody>
         </table>
-        <p className="note">이 화면은 읍·면·동 단위 집계만 공개합니다. 개별 주택이 특정되어 낙인이나 민원이 생기지 않도록, 건물 단위 화면은 행정 담당자에게만 제공합니다.</p>
-        <p className="note"><a className="adminlink" href="/admin">행정 담당자 화면 →</a></p>
+        <p className="note">건물 단위 지도에서는 건물별 대장 기록과 우선순위 점수, 찾아가는 신청 목록을 볼 수 있습니다. 주소·지번·소유자 정보는 싣지 않습니다.</p>
+        <a className="go" href="/map">건물 단위 지도 열기 →</a>
       </aside>
     </div>
   );
