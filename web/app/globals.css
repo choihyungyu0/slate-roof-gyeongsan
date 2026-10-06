@@ -90,3 +90,6 @@ a.adminlink:hover, .gate a:hover { color: var(--pick); }
 .collabel b { display: block; font-size: 13px; }
 a.go { display: block; margin-top: 12px; padding: 11px 14px; border-radius: 8px; background: var(--pick); color: #17181a; font-weight: 700; text-align: center; text-decoration: none; }
 .brand a { color: inherit; text-decoration: none; }
+.facts { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; line-height: 1.6; }
+.facts li { margin-bottom: 7px; }
+.facts b { color: var(--text); font-weight: 600; }

@@ -10,6 +10,12 @@ const PICK = "#ffe066";
 const M_PER_HOUSE = 4;    // 기둥 높이: 주택 1동 = 4m
 const VWORLD_KEY = process.env.NEXT_PUBLIC_VWORLD_KEY;
 
+type Summary = {
+  houses: number; code: number; sure: number; max: number;
+  llm?: { n: number; same4: number; same2: number };
+  permit?: { n: number; any: number };
+  transfer?: { name: string; uniq: number; unmatched: number; miss_pct: number; sure: number; max: number }[];
+};
 type Emd = { cd: string; name: string; houses: number; sure: number; max: number; share: number };
 
 export default function PublicMap() {
@@ -17,6 +23,7 @@ export default function PublicMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [emds, setEmds] = useState<Emd[]>([]);
   const [sel, setSel] = useState<string | null>(null);
+  const [sum, setSum] = useState<Summary | null>(null);
 
   useEffect(() => {
     if (!el.current) return;
@@ -81,6 +88,10 @@ export default function PublicMap() {
   }, []);
 
   useEffect(() => {
+    fetch("/data/summary.json").then((r) => r.json()).then(setSum).catch(() => setSum(null));
+  }, []);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getSource("emd")) return;
     map.removeFeatureState({ source: "emd" });
@@ -107,6 +118,7 @@ export default function PublicMap() {
         <h2>경산시 대장 슬레이트 주택</h2>
         <div className="score"><b>{total.sure ? `${total.sure.toLocaleString()} ~ ${total.max.toLocaleString()}` : "…"}</b><span>동 (확실 ~ 최대)</span></div>
         <p className="note">건축물대장 지붕 코드와 자유기재란을 함께 읽어 집계했습니다. 주택류 표제부 {total.houses.toLocaleString()}동 기준이며 미등재 건축물은 포함되지 않습니다.</p>
+        <a className="go" href="/map">건물 단위 지도 열기 →</a>
         {picked && (
           <>
             <h3>{picked.name}</h3>
@@ -115,6 +127,18 @@ export default function PublicMap() {
               <dt>확실</dt><dd>{picked.sure.toLocaleString()}동</dd>
               <dt>최대</dt><dd>{picked.max.toLocaleString()}동 (주택의 {picked.share}%)</dd>
             </dl>
+          </>
+        )}
+        {sum && (
+          <>
+            <h3>어떻게 찾았나 · 어디까지 확인했나</h3>
+            <ul className="facts">
+              <li><b>코드만 세면 {sum.code.toLocaleString()}동, 자유기재까지 읽으면 최대 {sum.max.toLocaleString()}동.</b> 지붕 코드로는 안 잡히던 {(sum.max - sum.code).toLocaleString()}동({((sum.max - sum.code) / sum.max * 100).toFixed(1)}%)을 자유기재란 정규화로 찾았습니다.</li>
+              {sum.llm && <li>자유기재 표기 {sum.llm.n.toLocaleString()}종을 규칙표와 LLM이 따로 분류해 비교했습니다. 4분류 일치 {(sum.llm.same4 / sum.llm.n * 100).toFixed(1)}%, 슬레이트 포함 여부 일치 {(sum.llm.same2 / sum.llm.n * 100).toFixed(1)}%. 정확도가 아니라 두 방법의 일치율입니다.</li>}
+              {sum.transfer && <li>같은 규칙표를 고치지 않고 적용하면 {sum.transfer.map((t) => `${t.name} 표기 ${t.uniq.toLocaleString()}종 중 ${t.unmatched}종`).join(", ")}만 미분류였습니다. 코드 누락 비율은 {sum.transfer.map((t) => `${t.name} ${t.miss_pct}%`).join(", ")}로 시·군마다 다릅니다.</li>}
+              {sum.permit && <li>대수선·철거멸실 인허가 기록과 필지 단위로 대조하면 겹치는 주택은 {sum.permit.any}동({(sum.permit.any / sum.permit.n * 100).toFixed(1)}%)뿐입니다. 인허가 기록으로는 지붕 개량 여부를 가릴 수 없어 현장 확인이 필요합니다.</li>}
+              <li>모든 수치는 건축물대장 기재 기준이며 현장에서 확인한 값이 아닙니다.</li>
+            </ul>
           </>
         )}
         <h3>읍·면·동별 (확실 ~ 최대)</h3>
@@ -129,7 +153,6 @@ export default function PublicMap() {
           </tbody>
         </table>
         <p className="note">건물 단위 지도에서는 건물별 대장 기록과 우선순위 점수, 찾아가는 신청 목록을 볼 수 있습니다. 주소·지번·소유자 정보는 싣지 않습니다.</p>
-        <a className="go" href="/map">건물 단위 지도 열기 →</a>
       </aside>
     </div>
   );

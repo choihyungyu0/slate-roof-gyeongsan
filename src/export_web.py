@@ -22,8 +22,14 @@ b = b[b["bjd_cd"].str[:8].isin(emd["emd_cd"])].copy()
 b["emd"] = b["bjd_cd"].str[:8].map(dict(zip(emd["emd_cd"], emd["emd_kor_nm"])))
 
 t = pd.read_parquet(PRO / "title_joined.parquet")
+# 인허가 이력(같은 필지의 대수선·철거멸실 기록) — src/permit_check.py 산출
+pf = PRO / "permit_flags.parquet"
+if pf.exists():
+    t = t.merge(pd.read_parquet(pf)[["mgmBldrgstPk", "any", "dem_whole", "dem_roof_asb"]].rename(columns={"any": "pm_any"}), on="mgmBldrgstPk", how="left")
+else:
+    t = t.assign(pm_any=None, dem_whole=None, dem_roof_asb=None)
 t = t[t["gis_bld_id"].notna()].drop_duplicates("gis_bld_id")
-b = b.merge(t[["gis_bld_id", "house", "slate", "slate_sure", "roof_class", "slate_code", "slate_text", "mainPurpsCdNm", "roofCdNm", "etcRoof", "year", "year_raw", "archArea", "match_how"]],
+b = b.merge(t[["gis_bld_id", "house", "slate", "slate_sure", "roof_class", "slate_code", "slate_text", "pm_any", "dem_whole", "dem_roof_asb", "mainPurpsCdNm", "roofCdNm", "etcRoof", "year", "year_raw", "archArea", "match_how"]],
             on="gis_bld_id", how="left")
 # 우선순위 점수(정책 점수) — 위치가 있는 대장 슬레이트 주택에만 있다
 ps = pd.read_csv(PRO / "priority_scores.csv", dtype={"gis_bld_id": str})
@@ -51,6 +57,8 @@ for i, r in enumerate(g.itertuples(), 1):
                      ca=round(float(r.c_age), 2), cr=round(float(r.c_area), 2), cs=round(float(r.c_school), 2),
                      cd=round(float(r.c_daycare), 2), ce=round(float(r.c_senior), 2), cc=round(float(r.c_certainty), 2),
                      ds=int(r.dist_school_m), dd=int(r.dist_daycare_m), de=int(r.dist_senior_m))
+        if not pd.isna(r.pm_any):  # 슬레이트 주택에만 값이 있다
+            p.update(pm=int(bool(r.pm_any)), pw=int(bool(r.dem_whole)), pa=int(bool(r.dem_roof_asb)))
         p.update(use=r.mainPurpsCdNm, roof=r.roofCdNm, etc=r.etcRoof, rc=r.roof_class, how=r.match_how,
                  year=None if pd.isna(r.year) else int(r.year),
                  yflag=int(pd.isna(r.year) and not pd.isna(r.year_raw)),
@@ -77,6 +85,23 @@ e = emd.merge(by[["emd_cd", "houses", "slate_sure", "slate_houses", "slate_share
 e["geometry"] = set_precision(e.geometry.simplify(0.0001).values, 1e-6)
 e["shown"] = e["emd_kor_nm"].map(g[g["cat"].isin([1, 3])].groupby("emd").size())
 e[["emd_cd", "emd_kor_nm", "houses", "slate_sure", "slate_houses", "slate_share_pct", "shown", "geometry"]].to_file(OUT / "emd.geojson", driver="GeoJSON")
+# 첫 화면용 요약(검증 결과). 근거는 reports/proposal_numbers.md 와 각 보고서
+hs = pd.read_parquet(PRO / "title_joined.parquet")
+hs = hs[hs["house"]]
+summary = {"houses": int(len(hs)), "code": int((hs["roofCdNm"].fillna("").str.strip() == "슬레이트").sum()),
+           "sure": int(hs["slate_sure"].sum()), "max": int(hs["slate"].sum())}
+cc = PRO / "llm" / "crosscheck.csv"
+if cc.exists():
+    c = pd.read_csv(cc)
+    summary["llm"] = {"n": int(len(c)), "same4": int(c["same"].sum()), "same2": int((c["rule_sl"] == c["llm_sl"]).sum())}
+if pf.exists():
+    f = pd.read_parquet(pf)
+    summary["permit"] = {"n": int(len(f)), "any": int(f["any"].sum())}
+# 확장성 시험 수치는 reports/transfer_test.md 의 표(2026-10-06)를 옮긴 것
+summary["transfer"] = [{"name": "영천시", "uniq": 1828, "unmatched": 25, "miss_pct": 26.5, "sure": 4288, "max": 6467},
+                       {"name": "청도군", "uniq": 1755, "unmatched": 23, "miss_pct": 0.6, "sure": 8806, "max": 8855}]
+(OUT / "summary.json").write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+print("요약:", summary)
 print(f"건물 {len(feats):,}동 → public/data 조각 {len(sizes)}개 (MB: {sizes})")
 print("cat:", g["cat"].map({1: "슬레이트 주택(확실)", 3: "혼합 기재 주택", 2: "그 외 주택", 0: "그 밖"}).value_counts().to_dict())
 print("우선순위 점수가 붙은 건물:", int(g["rank"].notna().sum()), "/ 순위 대상", PS_N)

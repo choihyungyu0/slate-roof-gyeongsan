@@ -18,6 +18,7 @@ const VWORLD_KEY = process.env.NEXT_PUBLIC_VWORLD_KEY;
 type Props = {
   cat: number; h: number; he: number; hsrc: string; emd: string; reg: number; use?: string | null;
   roof?: string; etc?: string; rc?: string; how?: string; year?: number | null; yflag?: number; area?: number | null; sc?: number; st?: number;
+  pm?: number; pw?: number; pa?: number;
   ps?: number; pr?: number; pn?: number; ca?: number; cr?: number; cs?: number; cd?: number; ce?: number; cc?: number; ds?: number; dd?: number; de?: number;
 };
 type Item = { id: number; p: Props; center: [number, number] };
@@ -253,6 +254,14 @@ export default function MapView() {
                 <dt>사용승인</dt><dd>{sel.year ? `${sel.year}년` : sel.yflag ? "연도 불명 (대장 기재값 비정상)" : "연도 불명"}</dd>
                 <dt>건축면적</dt><dd>{sel.area != null ? `${sel.area}㎡` : "미확인"}</dd>
                 <dt>도형 연결</dt><dd>{sel.how}</dd>
+                {sel.pm != null && (
+                  <>
+                    <dt>인허가 이력</dt>
+                    <dd>{sel.pm
+                      ? `같은 필지에 ${sel.pw ? "철거·멸실" : "부분 철거·멸실"} 신고 기록 있음${sel.pa ? " (지붕재 석면 포함으로 신고)" : ""} — 개량·철거 여부 확인 필요`
+                      : "같은 필지에 대수선·철거 기록 없음 (지붕 교체는 기록되지 않을 수 있음)"}</dd>
+                  </>
+                )}
               </dl>
             ) : (
               <>
