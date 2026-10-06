@@ -76,10 +76,24 @@ def parse(js: dict) -> tuple[list[dict], int]:
 
 
 def bjdong_list() -> list[str]:
-    import geopandas as gpd
+    """법정동 목록: 경산은 gs_buildings.gpkg, 다른 시군은 경북 건물 SHP의 PNU에서 뽑는다."""
+    if SIGUNGU == "47290":
+        import geopandas as gpd
 
-    gdf = gpd.read_file(INTERIM / "gs_buildings.gpkg", columns=["PNU"], ignore_geometry=True)
-    return sorted(gdf["PNU"].astype(str).str[5:10].unique())
+        gdf = gpd.read_file(INTERIM / "gs_buildings.gpkg", columns=["PNU"], ignore_geometry=True)
+        return sorted(gdf["PNU"].astype(str).str[5:10].unique())
+    cache = INTERIM / f"bjdong_{SIGUNGU}.json"
+    if cache.exists():
+        return json.loads(cache.read_text(encoding="utf-8"))
+    import pyogrio
+
+    codes: set[str] = set()
+    for shp in sorted((ROOT / "data" / "raw" / "AL_D010_47").glob("*.shp")):
+        d = pyogrio.read_dataframe(shp, columns=["A2"], where=f"A2 LIKE '{SIGUNGU}%'", read_geometry=False, encoding="cp949")
+        codes |= set(d["A2"].astype(str).str[5:10])
+    out = sorted(codes)
+    cache.write_text(json.dumps(out), encoding="utf-8")
+    return out
 
 
 def build_parquet() -> None:
@@ -104,7 +118,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--test", metavar="BJDONG", help="법정동 1곳을 1건만 조회해 응답 구조 확인")
     ap.add_argument("--max-calls", type=int, default=9000)
+    ap.add_argument("--sigungu", default="47290", help="시군구코드 5자리 (기본 경산시)")
     args = ap.parse_args()
+    global SIGUNGU, PAGES, OUT
+    SIGUNGU = args.sigungu
+    if SIGUNGU != "47290":  # 경산 캐시(title_pages)는 그대로 두고 시군별 폴더를 쓴다
+        PAGES = INTERIM / f"title_pages_{SIGUNGU}"
+    OUT = INTERIM / f"title_{SIGUNGU}.parquet"
     if not KEY:
         sys.exit(".env 에 BLD_API_KEY 가 없습니다")
 
