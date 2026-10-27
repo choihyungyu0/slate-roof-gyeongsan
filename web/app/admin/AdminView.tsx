@@ -19,7 +19,7 @@ type Emd = { name: string; houses: number; sure: number; max: number };
 type Summary = { houses: number; sure: number; max: number };
 type Rule = { order: number; label: string; note: string; pattern: string; examples: string[]; n: number };
 type Join = { rows: { name: string; org: string; date: string; unit: string; rate: string }[]; elderly_ym: string };
-type Law = { law: string; article: string; title: string; use: string; fetched: string; url: string };
+type Law = { law: string; article: string; title: string; use: string; fetched: string; url: string; support?: boolean };
 type Tab = "stat" | "list" | "field" | "budget" | "law";
 const SEED = 20261028;
 const POLICY = "선정은 해당 연도 공고 기준을 따르며, 온지붕 점수는 안내·현장 확인 순서에만 씁니다";
@@ -96,7 +96,7 @@ function noticeLines(b: B, law: string): Line[] {
     { text: "■ 신청 장소: 관할 행정복지센터 (읍·면사무소, 동 행정복지센터)" },
     { text: "주소: ______________________________   성명: ______________  (주소·성명은 행정망에서 채움)", style: "small" },
     { text: "※ 대장 기재 기준 안내이며, 실제 지붕 재료는 현장 확인 후 확정됩니다. 선정은 해당 연도 공고 기준을 따릅니다.", style: "small" },
-    ...(law ? [{ text: `근거: ${law}`, style: "small" as const }] : []),
+    ...(law ? [{ text: law, style: "small" as const }] : []),
   ];
 }
 
@@ -178,7 +178,14 @@ export default function AdminView() {
     return c;
   }, [bld, recs]);
   const supCount = useMemo(() => bld.filter((b) => recs[b.id]?.sup).length, [bld, recs]);
-  const lawLine = laws.filter((l) => l.use.includes("안내")).map((l) => `${l.law} ${l.article}`).join(", ");
+  // 안내문 하단: 본문에 비용 지원 내용이 있는 조문만 "근거:", 나머지는 "관련 법령:"(법령명·조문 번호만)
+  const lawName = (l: Law) => (l.law === "개인정보 보호법" && l.article === "제18조" ? `${l.law} 제18조(목적 외 이용·제공 제한)` : `${l.law} ${l.article}`);
+  const joinLaws = (ls: Law[]) => [...new Set(ls.map((l) => l.law))].map((n) => {
+    const g = ls.filter((l) => l.law === n);
+    return g.length === 1 ? lawName(g[0]) : `${n} ${g.map((l) => l.article).join("·")}`;
+  }).join(", ");
+  const lawLine = [laws.some((l) => l.support) && `근거: ${joinLaws(laws.filter((l) => l.support))}`,
+    laws.some((l) => !l.support) && `관련 법령: ${joinLaws(laws.filter((l) => !l.support))}`].filter(Boolean).join(" / ");
 
   const listAll = bld.filter((b) => (fEmd === "전체" || b.p.emd === fEmd)
     && (fKind === "전체" || (fKind === "혼합" ? b.p.rc === "혼합" : b.p.rc !== "혼합"))
@@ -335,7 +342,7 @@ export default function AdminView() {
                 <tr><th>주소</th><td /></tr><tr><th>성명</th><td /></tr>
               </tbody></table>
               <p className="fine">주소·성명은 행정망에서 채움 · 대장 기재 기준 안내이며 실제 지붕 재료는 현장 확인 후 확정됩니다. 선정은 해당 연도 공고 기준을 따릅니다.</p>
-              {lawLine && <p className="fine">근거: {lawLine}</p>}
+              {lawLine && <p className="fine">{lawLine}</p>}
             </section>
           ))}
         </div>
@@ -523,8 +530,8 @@ export default function AdminView() {
           {tab === "law" && (
             laws.length ? (
               <table className="grid">
-                <thead><tr><th>법령</th><th>조문</th><th>제목</th><th>쓰이는 곳</th><th>조회일</th><th>원문</th></tr></thead>
-                <tbody>{laws.map((l) => <tr key={l.law + l.article}><td>{l.law}</td><td>{l.article}</td><td>{l.title}</td><td>{l.use}</td><td>{l.fetched}</td>
+                <thead><tr><th>법령</th><th>조문</th><th>제목</th><th>안내문 표기</th><th>쓰이는 곳</th><th>조회일</th><th>원문</th></tr></thead>
+                <tbody>{laws.map((l) => <tr key={l.law + l.article}><td>{l.law}</td><td>{l.article}</td><td>{l.title}</td><td>{l.support ? "지원 근거" : "관련 법령"}</td><td>{l.use}</td><td>{l.fetched}</td>
                   <td><a className="rv" href={l.url} target="_blank" rel="noreferrer">law.go.kr</a></td></tr>)}</tbody>
               </table>
             ) : (

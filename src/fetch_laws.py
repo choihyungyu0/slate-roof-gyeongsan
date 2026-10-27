@@ -2,7 +2,7 @@
 
 - 조문 번호·제목은 API 응답 그대로 쓴다. 못 찾은 항목은 넣지 않고 화면에 출력해 보고한다.
 - 인증값 OC는 .env 의 LAW_OC. 신청 시 등록한 도메인을 Referer로 보낸다. 값은 출력하지 않는다.
-출력: web/public/data/legal_basis.json
+출력: web/public/data/legal_basis.json (조문 본문 text, 지원·비용·보조 단어 여부 keyword, 비용 지원 내용 여부 support)
 """
 import datetime as dt
 import json
@@ -62,7 +62,11 @@ for name, pick, use in TARGETS:
         missing.append(f"{name}: '{pick}' 조문 없음")
     for a in sel:
         no = f"제{a['조문번호']}조" + (f"의{a['조문가지번호']}" if a.get("조문가지번호") else "")
-        out.append({"law": name, "article": no, "title": a.get("조문제목") or "", "use": use, "fetched": today,
+        body = re.sub(r"\s+", " ", text([a.get("조문내용"), a.get("항")])).strip()
+        out.append({"law": name, "article": no, "title": a.get("조문제목") or "", "use": use, "fetched": today, "text": body,
+                    "keyword": bool(re.search(r"지원|비용|보조", body)),
+                    # 지원 근거 = 본문에 비용·보조를 지원한다는 내용이 있는 조문 ('지원대상자' 같은 용어만 있는 것은 제외)
+                    "support": bool(re.search(r"(비용|보조)[^.]{0,40}지원|지원[^.]{0,10}(비용|보조)|보조금", body)),
                     "url": f"https://www.law.go.kr/법령/{name}/{no}"})
 (ROOT / "web" / "public" / "data" / "legal_basis.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
 for o in out:

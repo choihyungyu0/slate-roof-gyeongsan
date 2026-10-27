@@ -128,7 +128,7 @@ with sync_playwright() as p:
     d.value.save_as(str(hw))
     sec = z.read("Contents/section0.xml").decode("utf-8")
     ok("주소·성명은 행정망에서 채움" in sec and "소유자 및 거주자 귀하" in sec and "해당 연도 공고 금액" in sec and "만 원" not in sec and "소유자의 동의" in sec, "HWPX 안내문 문안")
-    ok("석면안전관리법 제26조" in sec, "안내문 근거 조문 줄")
+    ok("근거: 석면안전관리법 제25조" in sec and "관련 법령: 개인정보 보호법 제18조(목적 외 이용·제공 제한)" in sec, "안내문 근거·관련 법령 줄")
     with pg.expect_download() as d:
         pg.get_by_text("방문 목록 CSV").click()
     h2 = next(csv.reader(io.StringIO(Path(d.value.path()).read_bytes().decode("utf-8-sig"))))
