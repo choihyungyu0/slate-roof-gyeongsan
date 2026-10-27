@@ -1,0 +1,253 @@
+/* 행정 화면 v2 — 밝은 업무 화면 (사각119 실무 모드의 틀과 톤을 따른다). 모든 규칙은 .a2 아래에만 건다.
+   글꼴은 Pretendard(패키지로 함께 배포), 숫자는 tabular-nums. 색은 위험(빨강)·혼합(연주황)·조작(파랑)에만 쓴다. */
+
+.a2 {
+  --bg: #ffffff; --panel: #f7f8fa; --line: #e5e7eb; --line-2: #d0d5dd; --ink: #111827; --ink-2: #374151; --sub: #6b7280; --faint: #9ca3af;
+  --red: #d92d20; --red-soft: #fef3f2; --mix: #f2c08a; --mix-ink: #9a5a14; --mix-soft: #fdf4e8;
+  --blue: #1d4ed8; --blue-soft: #eef3ff; --blue-line: #c7d7fe; --green: #12b76a;
+  --sh: 0 1px 2px rgba(16, 24, 40, .04);
+  position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column;
+  background: var(--bg); color: var(--ink);
+  font-family: "Pretendard Variable", Pretendard, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  font-size: 13px; line-height: 1.5; letter-spacing: -0.005em;
+  font-feature-settings: "tnum" 1, "ss06" 1; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+.a2 * { box-sizing: border-box; }
+.a2 :where(h1, h2, h3, h4, p, dl, dd, ul) { margin: 0; }
+.a2 .num { font-variant-numeric: tabular-nums; }
+.a2 .sub { color: var(--sub); }
+.a2 .red { color: var(--red); }
+.a2 a { color: var(--blue); text-decoration: none; }
+.a2 a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.a2 button { color: inherit; }
+.a2 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ── 조작 요소 ── */
+.a2 .control { height: 32px; padding: 0 28px 0 10px; border: 1px solid var(--line-2); border-radius: 6px; background-color: #fff; color: var(--ink);
+  font: inherit; font-size: 12.5px; font-weight: 500; box-shadow: var(--sh); opacity: 1; }
+.a2 select.control, .a2 table.t select { appearance: none; -webkit-appearance: none; cursor: pointer;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%236b7280' stroke-width='1.6'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 9px center; }
+.a2 .control:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
+.a2 input.control[type=number] { width: 84px; padding: 0 8px; text-align: right; }
+.a2 .seg { display: flex; height: 32px; padding: 2px; gap: 2px; background: #f2f4f7; border: 1px solid var(--line); border-radius: 8px; }
+.a2 .seg button { border: 0; border-radius: 6px; background: transparent; padding: 0 12px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sub); cursor: pointer; }
+.a2 .seg button[aria-pressed=true] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(16, 24, 40, .1), 0 1px 2px rgba(16, 24, 40, .06); }
+.a2 .btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 6px;
+  background: #fff; box-shadow: var(--sh); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; white-space: nowrap;
+  transition: background .12s, border-color .12s; }
+.a2 .btn:hover:not(:disabled) { background: #f9fafb; border-color: #b9c0cc; }
+.a2 .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.a2 .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.a2 .btn.primary:hover:not(:disabled) { background: #1e40af; border-color: #1e40af; }
+.a2 .btn.ghost { border-color: transparent; background: transparent; box-shadow: none; color: var(--blue); padding: 0 6px; }
+.a2 .btn.ghost:hover:not(:disabled) { background: var(--blue-soft); border-color: transparent; }
+.a2 .btn.sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.a2 .btn svg { flex-shrink: 0; }
+.a2 label.btn input[type=file] { display: none; }
+.a2 input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--blue); cursor: pointer; vertical-align: middle; }
+
+/* ── 상단 바 ── */
+.a2-top { height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 18px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.a2-logo { display: flex; align-items: center; gap: 10px; color: var(--ink) !important; text-decoration: none !important; }
+.a2-logo .mark { width: 30px; height: 30px; border-radius: 8px; background: var(--red); display: grid; place-items: center; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .12); }
+.a2-logo b { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
+.a2-logo small { font-size: 12.5px; color: var(--sub); font-weight: 500; padding-left: 10px; border-left: 1px solid var(--line); }
+.a2-top .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.a2-top .vr { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+
+/* ── 본문 3단 ── */
+.a2-body { flex: 1; min-height: 0; display: flex; }
+.a2-nav { width: 216px; flex-shrink: 0; border-right: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; }
+.a2-nav .grp { padding: 14px 18px 4px; font-size: 11px; font-weight: 700; color: var(--faint); letter-spacing: .04em; }
+.a2-nav ul { list-style: none; margin: 0; padding: 4px 10px; }
+.a2-nav li button, .a2-nav li a { position: relative; width: 100%; display: flex; align-items: center; gap: 11px; padding: 8px 10px; margin-bottom: 2px;
+  border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; color: var(--ink-2); cursor: pointer; text-decoration: none !important; }
+.a2-nav li button:hover, .a2-nav li a:hover { background: var(--panel); }
+.a2-nav li [aria-current=page] { background: var(--blue-soft); color: var(--blue); }
+.a2-nav li [aria-current=page]::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--blue); }
+.a2-nav li svg { flex-shrink: 0; color: var(--faint); }
+.a2-nav li [aria-current=page] svg { color: var(--blue); }
+.a2-nav .t { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
+.a2-nav .s { display: block; font-size: 11.5px; color: var(--sub); line-height: 1.35; }
+.a2-nav li [aria-current=page] .s { color: #4b6bd6; }
+.a2-nav li a .ext { margin-left: auto; color: var(--faint); font-size: 11px; }
+.a2-nav .sum { margin-top: auto; border-top: 1px solid var(--line); padding: 14px 14px 16px; }
+.a2-nav .sum .lbl { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--faint); letter-spacing: .02em; margin-bottom: 8px; }
+.a2-nav .sum .meter { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: #eef0f3; margin-bottom: 10px; }
+.a2-nav .sum .meter i { display: block; height: 100%; }
+.a2-nav .sum .g { display: grid; gap: 4px; }
+.a2-nav .sum .g div { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.a2-nav .sum .g span { flex: 1; }
+.a2-nav .sum .g b { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.a2-main { flex: 1; min-width: 0; display: flex; background: var(--panel); }
+.a2-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 18px 20px 16px; gap: 14px; overflow: hidden; }
+.a2-pane.scroll { overflow: auto; }
+.a2-pane.scroll > * { flex-shrink: 0; }
+.a2-pane.narrow > * { width: 100%; max-width: 1320px; }
+.a2-head { display: flex; align-items: baseline; gap: 12px; min-height: 28px; }
+.a2-head h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; }
+.a2-head p { color: var(--sub); font-size: 12.5px; }
+.a2-head .right { margin-left: auto; display: flex; gap: 6px; align-items: center; align-self: center; }
+
+/* ── KPI ── */
+.a2-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--sh); }
+.a2-kpi { padding: 12px 16px 12px; min-width: 0; border-right: 1px solid var(--line); }
+.a2-kpi:last-child { border-right: 0; }
+.a2-kpi .l { font-size: 12px; font-weight: 600; color: var(--sub); }
+.a2-kpi .v { margin-top: 2px; font-size: 24px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.3; white-space: nowrap; }
+.a2-kpi .v small { font-size: 13px; font-weight: 600; margin-left: 2px; color: var(--ink-2); letter-spacing: 0; }
+.a2-kpi .v input { width: 70px; height: 30px; font: inherit; font-size: 20px; font-weight: 700; color: var(--ink); border: 1px solid var(--line-2); border-radius: 6px;
+  padding: 0 8px; text-align: right; background: #fff; vertical-align: 2px; }
+.a2-kpi .v input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
+.a2-kpi .d { margin-top: 1px; font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.a2-kpi.red .v { color: var(--red); }
+.a2-kpi.muted .v { color: var(--faint); }
+
+/* ── 카드 ── */
+.a2-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.a2-cards.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.a2-card { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; box-shadow: var(--sh); }
+.a2-card h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+.a2-card .code { font-size: 11px; font-weight: 700; color: var(--faint); letter-spacing: .03em; margin-bottom: 4px; }
+.a2-card p { margin-top: 8px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.a2-card dl { display: grid; grid-template-columns: 58px 1fr; gap: 5px 10px; font-size: 12.5px; line-height: 1.5; }
+.a2-card dt { color: var(--sub); font-weight: 500; }
+.a2-card dd { min-width: 0; color: var(--ink); }
+.a2-big { font-size: 32px; font-weight: 700; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.a2-big small { font-size: 14px; font-weight: 600; letter-spacing: 0; margin-left: 2px; }
+.a2-figs { display: flex; flex-wrap: wrap; gap: 6px 28px; align-items: baseline; }
+.a2-figs > span { display: inline-flex; align-items: baseline; gap: 6px; }
+.a2-figs .sub { font-size: 12.5px; }
+
+/* 1~3순위 읍면 카드 */
+.a2-pri { display: flex; flex-direction: column; gap: 10px; }
+.a2-pri .hd { display: flex; align-items: center; gap: 10px; }
+.a2-pri .rk { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--red); }
+.a2-pri .rk.r2, .a2-pri .rk.r3 { background: #fff; color: var(--red); border: 1.5px solid var(--red); }
+.a2-pri .nm { font-size: 17px; font-weight: 700; letter-spacing: -0.03em; }
+.a2-pri .prog { margin-left: auto; font-size: 12px; color: var(--sub); display: flex; align-items: center; gap: 5px; }
+.a2-pri .prog b { font-size: 15px; color: var(--blue); }
+.a2-pri .stat { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.a2-pri .stat div { padding: 6px 10px; border-right: 1px solid var(--line); }
+.a2-pri .stat div:last-child { border-right: 0; }
+.a2-pri .stat span { display: block; font-size: 11px; color: var(--sub); font-weight: 600; }
+.a2-pri .stat b { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.a2-pri .stat b small { font-size: 11.5px; font-weight: 600; color: var(--sub); margin-left: 1px; }
+.a2-pri .ft { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 8px; margin-top: auto; }
+.a2-pri .ft .sub { font-size: 11.5px; }
+
+/* 칩 */
+.a2-chip { display: inline-flex; align-items: center; height: 20px; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 0 8px; border: 1px solid; white-space: nowrap; letter-spacing: 0; vertical-align: 1px; }
+.a2-chip.ok { color: #067647; background: #ecfdf3; border-color: #abefc6; }
+.a2-chip.no { color: #b42318; background: var(--red-soft); border-color: #fecdca; }
+.a2-chip.hold { color: #93370d; background: #fffaeb; border-color: #fedf89; }
+.a2-chip.ref { color: var(--ink-2); background: #f2f4f7; border-color: var(--line); }
+.a2-chip.sure { color: #b42318; background: var(--red-soft); border-color: #fecdca; }
+.a2-chip.mix { color: var(--mix-ink); background: var(--mix-soft); border-color: var(--mix); }
+
+/* ── 표 ── */
+.a2-tbl { flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--sh); }
+.a2-tbl.fit { flex: none; }
+.a2 table.t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.a2 table.t th { position: sticky; top: 0; z-index: 1; background: #fafbfc; color: var(--sub); font-weight: 600; font-size: 12px; text-align: left; height: 38px;
+  padding: 0 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.a2 table.t td { height: 44px; padding: 0 12px; border-bottom: 1px solid #eef0f3; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+  text-align: left; color: var(--ink); font-weight: 400; font-variant-numeric: tabular-nums; }
+.a2 table.t tbody tr:last-child td { border-bottom: 0; }
+.a2 table.t th.r, .a2 table.t td.r { text-align: right; }
+.a2 table.t th.c, .a2 table.t td.c { text-align: center; }
+.a2 table.t tbody tr { cursor: pointer; }
+.a2 table.t tbody tr:hover td { background: #fafbfc; }
+.a2 table.t tbody tr[aria-selected=true] td { background: var(--blue-soft); }
+.a2 table.t tbody tr[aria-selected=true] td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
+.a2 table.t tbody tr.sup td { color: var(--faint); }
+.a2 table.t td.score { font-weight: 700; font-size: 13.5px; }
+.a2 table.t td.mono { font-family: "Pretendard Variable", Pretendard, sans-serif; font-feature-settings: "tnum" 1; color: var(--ink-2); letter-spacing: 0; }
+.a2 table.t td.dim, .a2 table.t td .sub { color: var(--sub); }
+.a2 table.t select { height: 28px; padding: 0 24px 0 8px; border: 1px solid var(--line-2); border-radius: 6px; font: inherit; font-size: 12px; color: var(--ink); background-color: #fff; }
+.a2 table.t input[type=text], .a2 table.t input[type=date] { height: 28px; border: 1px solid var(--line-2); border-radius: 6px; font: inherit; font-size: 12px;
+  color: var(--ink); background: #fff; padding: 0 8px; }
+.a2 table.t input[type=text] { width: 150px; }
+.a2 table.t.nohover tbody tr { cursor: default; }
+.a2 .rangebar { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.a2 .rangebar i { position: relative; width: 120px; height: 6px; border-radius: 3px; background: #eef0f3; overflow: hidden; flex-shrink: 0; }
+.a2 .rangebar i b { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.a2 .rangebar i b.mx { background: var(--mix); }
+.a2 .rangebar i b.su { background: var(--red); }
+.a2 .sym { color: var(--blue); font-size: 15px; line-height: 1; }
+
+.a2-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.a2-bar .sp { flex: 1; }
+.a2-bar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+.a2-bar label.chk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); font-weight: 500; padding: 0 4px; cursor: pointer; }
+.a2-bar .sel-n { font-size: 12.5px; color: var(--sub); padding: 0 2px; }
+.a2-bar .sel-n b { color: var(--blue); }
+.a2-note { font-size: 12px; color: var(--sub); line-height: 1.6; }
+
+/* ── 오른쪽 패널 ── */
+.a2-side { width: 340px; flex-shrink: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--sh); overflow: auto; padding: 18px; }
+.a2-side .eyebrow { font-size: 11.5px; color: var(--sub); font-weight: 600; }
+.a2-side h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; margin-top: 2px; }
+.a2-side h4 { font-size: 11px; font-weight: 700; color: var(--faint); letter-spacing: .04em; margin: 18px 0 8px; }
+.a2-side .kv { display: grid; grid-template-columns: 70px 1fr; gap: 6px 10px; font-size: 12.5px; }
+.a2-side .kv dt { color: var(--sub); }
+.a2-side .kv dd { overflow-wrap: anywhere; }
+.a2-side .bars { display: grid; gap: 7px; margin-top: 10px; }
+.a2-side .bars div { display: grid; grid-template-columns: 84px 1fr 28px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.a2-side .bars i { display: block; height: 6px; border-radius: 3px; background: #eef0f3; overflow: hidden; }
+.a2-side .bars i b { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+.a2-side .bars .num { text-align: right; color: var(--sub); }
+.a2-side .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.a2-side .acts .btn { justify-content: center; }
+.a2-side .acts .btn[aria-pressed=true] { background: var(--blue); border-color: var(--blue); color: #fff; }
+.a2-side .empty { color: var(--sub); font-size: 12.5px; line-height: 1.7; padding: 48px 8px; text-align: center; }
+.a2-side .empty svg { display: block; margin: 0 auto 10px; color: var(--faint); }
+.a2-side .todo { display: grid; gap: 6px; }
+.a2-side .todo .btn { justify-content: center; }
+.a2-side .block { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel); }
+
+/* ── 진행 단계 ── */
+.a2-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--sh); }
+.a2-steps div { padding: 12px 16px 24px; border-right: 1px solid var(--line); position: relative; }
+.a2-steps div:last-child { border-right: 0; }
+.a2-steps span { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--sub); }
+.a2-steps span em { font-style: normal; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 700;
+  background: #f2f4f7; color: var(--sub); }
+.a2-steps b { display: block; margin-top: 4px; font-size: 24px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.a2-steps b small { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-left: 2px; }
+.a2-steps .p { font-size: 12px; color: var(--sub); }
+.a2-steps .track { position: absolute; left: 16px; right: 16px; bottom: 10px; height: 4px; border-radius: 2px; background: #eef0f3; overflow: hidden; }
+.a2-steps .track i { display: block; height: 100%; background: var(--blue); }
+
+/* 결과 막대(맞음/아님/철거/불가/미입력) */
+.a2-stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #eef0f3; margin-top: 12px; }
+.a2-stack i { display: block; height: 100%; }
+.a2-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12px; color: var(--ink-2); }
+.a2-legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; background: var(--c); }
+
+/* ── 하단 상태바 ── */
+.a2-foot { height: 30px; flex-shrink: 0; display: flex; align-items: center; padding: 0 16px; border-top: 1px solid var(--line); background: var(--bg);
+  font-size: 11.5px; color: var(--sub); white-space: nowrap; overflow: hidden; }
+.a2-foot > * + *::before { content: "·"; margin: 0 9px; color: var(--faint); }
+.a2-foot > .end::before { content: none; }
+.a2-foot button { border: 0; background: none; padding: 0; font: inherit; color: var(--sub); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.a2-foot .end { margin-left: auto; }
+.a2-foot .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+.a2-pop { position: absolute; top: 62px; right: 16px; width: 380px; z-index: 20; background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, .14), 0 2px 6px rgba(16, 24, 40, .06); padding: 16px 18px; font-size: 12.5px; }
+.a2-pop h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.a2-pop p { margin: 6px 0; color: var(--ink-2); line-height: 1.6; }
+.a2-pop .btn { margin-top: 8px; }
+.a2-pop.foot { top: auto; bottom: 38px; left: 16px; right: auto; }
+
+.a2 .z { color: #c4c9d2; }
+.a2-big.z { color: #c4c9d2; font-weight: 600; }
+.a2-foot > *::before { text-decoration: none; display: inline-block; }
+.a2-pri dl { font-size: 12px; gap: 3px 10px; }
+.a2-pri dd { line-height: 1.45; }
+.a2 { word-break: keep-all; overflow-wrap: break-word; }
+.a2 .rangebar.l { justify-content: flex-start; }
+.a2 .rangebar.l > span { min-width: 92px; text-align: right; }
+.a2 dd, .a2 dt, .a2 p, .a2 td, .a2 span { word-break: keep-all; }
