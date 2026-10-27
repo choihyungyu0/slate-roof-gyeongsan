@@ -102,7 +102,8 @@ export default function PublicMap() {
   const picked = emds.find((e) => e.cd === sel);
 
   return (
-    <div className="app">
+    <div className="app with-banner">
+      <div className="demo-banner">시연용 공개 화면 · 도입 시 건물 단위 정보는 행정망 내부 전용</div>
       <div className="map">
         <div className="canvas" ref={el} />
         <div className="bar">

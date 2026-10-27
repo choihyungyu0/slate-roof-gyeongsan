@@ -1,7 +1,9 @@
 "use client";
 
 import maplibregl, { type LngLatBoundsLike, type MapGeoJSONFeature } from "maplibre-gl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { bid, csvBlob, EMPTY_REC, isDefault, today, loadRecs, loadWeights, type Rec, type Result, RESULT_LABEL, RESULTS, rescore, saveRecs, saveWeights, W_DEFAULT, W_PARTS, type WKey } from "./shared";
 
 import Tour, { tourSeen } from "./Tour";
 
@@ -25,7 +27,7 @@ type Item = { id: number; p: Props; center: [number, number] };
 type Emd = { name: string; houses: number; sure: number; slate: number; share: number; bounds: LngLatBoundsLike; center: [number, number] };
 
 // 우선순위 점수 항목: 가중치와 근거 표시 (계산은 src/priority_score.py)
-const SCORE_PARTS: { key: "ca" | "cr" | "cs" | "cd" | "ce" | "cc"; label: string; w: string; basis: (p: Props) => string }[] = [
+const SCORE_PARTS: { key: WKey; label: string; w: string; basis: (p: Props) => string }[] = [
   { key: "ca", label: "노후도", w: "0.30", basis: (p) => (p.year ? `${p.year}년 사용승인` : "연도 불명(중간값)") },
   { key: "cr", label: "지붕 면적", w: "0.15", basis: (p) => (p.area != null ? `건축면적 ${p.area}㎡` : "미확인") },
   { key: "cs", label: "학교 거리", w: "0.20", basis: (p) => `${p.ds!.toLocaleString()}m` },
@@ -60,7 +62,7 @@ export default function MapView() {
   const picked = useRef<number | null>(null);
   const [emds, setEmds] = useState<Emd[]>([]);
   const [counts, setCounts] = useState<Record<number, number>>({});
-  const [sel, setSel] = useState<Props | null>(null);
+  const [selRaw, setSelRaw] = useState<{ id: number; p: Props } | null>(null);
   const [ready, setReady] = useState(false);
   const [aerial, setAerial] = useState(Boolean(VWORLD_KEY));  // 키가 있으면 항공영상을 기본으로 켠다
   const [tab, setTab] = useState<"info" | "list">("info");
@@ -68,6 +70,17 @@ export default function MapView() {
   const [listEmd, setListEmd] = useState("전체");
   const [listN, setListN] = useState(95);
   const [tour, setTour] = useState(false);
+  const [weights, setWeights] = useState<Record<WKey, number>>(W_DEFAULT);
+  const [recs, setRecs] = useState<Record<string, Rec>>({});
+  const [recOpen, setRecOpen] = useState(false);
+  useEffect(() => { setWeights(loadWeights()); setRecs(loadRecs()); }, []);
+  const setW = (w: Record<WKey, number>) => { setWeights(w); saveWeights(w); };
+  const setRec = (id: string, patch: Partial<Rec>) => setRecs((r) => { const n = { ...r, [id]: { ...EMPTY_REC, ...r[id], ...patch } }; saveRecs(n); return n; });
+  // 가중치가 바뀌면 점수·순위·신청 목록을 즉시 다시 계산한다
+  const ranked = useMemo(() => rescore(items, weights), [items, weights]);
+  const rankedById = useMemo(() => new Map(ranked.map((it) => [it.id, it.p])), [ranked]);
+  const sel: Props | null = selRaw ? (rankedById.get(selRaw.id) ?? selRaw.p) : null;
+  const selBid = selRaw ? bid(selRaw.id) : "";
 
   useEffect(() => {
     if (!el.current) return;
@@ -151,22 +164,23 @@ export default function MapView() {
     if (picked.current != null) map.setFeatureState({ source: "bld", id: picked.current }, { picked: false });
     picked.current = id;
     map.setFeatureState({ source: "bld", id }, { picked: true });
-    setSel(props);
+    setSelRaw({ id, p: props });
+    setRecOpen(false);
     setTab("info");
   };
   const visit = (it: Item) => {
     mapRef.current?.flyTo({ center: it.center, zoom: 18, pitch: 55, bearing: -18, duration: 1200 });
     pick(it.id, it.p);
   };
-  const listAll = listEmd === "전체" ? items : items.filter((it) => it.p.emd === listEmd);
+  const listAll = listEmd === "전체" ? ranked : ranked.filter((it) => it.p.emd === listEmd);
   const listShown = listAll.slice(0, listN);
   const downloadList = () => {
-    const head = ["목록순번", "시전체순위", "점수", "읍면동", "분류", "지붕자유기재", "사용승인연도", "건축면적", "학교거리m", "어린이집거리m", "경로당거리m", "경도", "위도"];
-    const rows = listShown.map((it, i) => [i + 1, it.p.pr, it.p.ps, it.p.emd, it.p.rc, `"${(it.p.etc ?? "").replace(/"/g, '""')}"`,
-      it.p.year ?? "", it.p.area ?? "", it.p.ds, it.p.dd, it.p.de, it.center[0].toFixed(6), it.center[1].toFixed(6)].join(","));
-    const blob = new Blob(["﻿" + [head.join(","), ...rows].join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    const head = ["목록순번", "시전체순위", "점수", "읍면동", "분류", "지붕자유기재", "사용승인연도", "건축면적", "학교거리m", "어린이집거리m", "경로당거리m", "경도", "위도",
+      "건물ID(행정망 주소 결합용)", "확인결과"];
+    const rows = listShown.map((it, i) => [i + 1, it.p.pr, it.p.ps, it.p.emd, it.p.rc, it.p.etc ?? "", it.p.year ?? "", it.p.area ?? "", it.p.ds, it.p.dd, it.p.de,
+      it.center[0].toFixed(6), it.center[1].toFixed(6), bid(it.id), recs[bid(it.id)]?.result ?? ""]);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = URL.createObjectURL(csvBlob([head, ...rows]));
     a.download = `찾아가는신청목록_${listEmd}_${listShown.length}동.csv`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -184,7 +198,8 @@ export default function MapView() {
   const cat = sel ? CATS.find((c) => c.cat === sel.cat)! : null;
 
   return (
-    <div className="app">
+    <div className="app with-banner">
+      <div className="demo-banner">시연용 공개 화면 · 도입 시 건물 단위 정보는 행정망 내부 전용</div>
       <div className="map">
         <div className="canvas" ref={el} />
         {!ready && <div className="loading">건물 도형을 불러오는 중…</div>}
@@ -196,6 +211,7 @@ export default function MapView() {
           </select>
           {VWORLD_KEY && <button aria-pressed={aerial} onClick={toggleAerial}>항공영상</button>}
           <button onClick={() => setTour(true)}>사용법</button>
+          <a className="barlink" href="/admin">행정 화면</a>
         </div>
         <div className="legend">
           {CATS.map((c) => (
@@ -224,19 +240,20 @@ export default function MapView() {
               </select>
               <button onClick={downloadList} disabled={!listShown.length}>CSV</button>
             </div>
-            <p className="note">{listEmd} 대상 {listAll.length.toLocaleString()}동 중 {listShown.length.toLocaleString()}동 표시 · 행을 누르면 지도에서 그 건물로 이동합니다</p>
+            <p className="note">{listEmd} 대상 {listAll.length.toLocaleString()}동 중 {listShown.length.toLocaleString()}동 표시 · 행을 누르면 지도에서 그 건물로 이동합니다{isDefault(weights) ? "" : " · 조정한 가중치 적용 중"}</p>
+            <p className="note join">주소·소유자는 시청 행정망에서 건물 ID로 결합</p>
             <table className="visit">
-              <thead><tr><th>#</th><th>읍·면·동</th><th>기재</th><th>사용승인</th><th>점수</th></tr></thead>
+              <thead><tr><th>#</th><th>건물 ID</th><th>읍·면·동</th><th>기재</th><th>사용승인</th><th>점수</th><th>확인</th></tr></thead>
               <tbody>
                 {listShown.map((it, i) => (
                   <tr key={it.id} className="row" onClick={() => visit(it)}>
-                    <td>{i + 1}</td><td>{it.p.emd}</td><td>{it.p.rc === "혼합" ? "혼합" : "단독"}</td>
-                    <td>{it.p.year ? `${it.p.year}` : "불명"}</td><td>{it.p.ps!.toFixed(1)}</td>
+                    <td>{i + 1}</td><td className="mono">{bid(it.id)}</td><td>{it.p.emd}</td><td>{it.p.rc === "혼합" ? "혼합" : "단독"}</td>
+                    <td>{it.p.year ? `${it.p.year}` : "불명"}</td><td>{it.p.ps!.toFixed(1)}</td><td>{recs[bid(it.id)]?.result ? RESULT_LABEL[recs[bid(it.id)].result] : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="note">순위는 건물 도형과 연결된 주택만 대상입니다. 주소·지번은 표시하지 않으며, CSV에도 건물 위치(좌표)까지만 들어갑니다. 가중치는 기본값입니다.</p>
+            <p className="note">순위는 건물 도형과 연결된 주택만 대상입니다. 주소·지번은 표시하지 않으며, CSV에는 건물 위치(좌표)와 건물 ID까지만 들어갑니다. 가중치는 건물 정보 탭에서 조정할 수 있습니다.</p>
           </>
         ) : sel && cat ? (
           <>
@@ -277,11 +294,36 @@ export default function MapView() {
                   <thead><tr><th>항목 (가중치)</th><th>근거</th><th>항목 점수</th></tr></thead>
                   <tbody>
                     {SCORE_PARTS.map((p) => (
-                      <tr key={p.key}><td>{p.label} ({p.w})</td><td>{p.basis(sel)}</td><td>{Math.round((sel[p.key] ?? 0) * 100)}</td></tr>
+                      <tr key={p.key}><td>{p.label} ({weights[p.key].toFixed(2)})</td><td>{p.basis(sel)}</td><td>{Math.round((sel[p.key] ?? 0) * 100)}</td></tr>
                     ))}
                   </tbody>
                 </table>
-                <p className="note">먼저 찾아갈 순서를 정하는 정책 점수입니다. 가중치는 기본값이며 정확도가 있는 예측이 아닙니다. 거리는 직선거리입니다.</p>
+                <p className="note">먼저 찾아갈 순서를 정하는 정책 점수입니다. 정확도가 있는 예측이 아닙니다. 거리는 직선거리입니다.</p>
+                <h3>가중치 조정 {isDefault(weights) ? "(기본값)" : "(조정됨)"}</h3>
+                <div className="weights">
+                  {W_PARTS.map(({ key, label }) => (
+                    <label key={key}><span>{label}</span>
+                      <input type="range" min={0} max={0.5} step={0.05} value={weights[key]} onChange={(e) => setW({ ...weights, [key]: Number(e.target.value) })} />
+                      <b>{weights[key].toFixed(2)}</b></label>
+                  ))}
+                </div>
+                <button className="small" disabled={isDefault(weights)} onClick={() => setW({ ...W_DEFAULT })}>기본값으로 되돌리기</button>
+                <h3>현장 확인 결과</h3>
+                <p className="note">건물 ID <span className="mono">{selBid}</span>{recs[selBid]?.result ? ` · 기록: ${RESULT_LABEL[recs[selBid].result]}${recs[selBid].date ? ` (${recs[selBid].date})` : ""}` : " · 기록 없음"}</p>
+                {!recOpen ? (
+                  <button className="small" onClick={() => setRecOpen(true)}>현장 확인 결과 기록</button>
+                ) : (
+                  <div className="recform">
+                    <div className="seg">{RESULTS.map((r) => (
+                      <button key={r} aria-pressed={recs[selBid]?.result === r}
+                        onClick={() => setRec(selBid, { result: r as Result, date: recs[selBid]?.date || today() })}>{RESULT_LABEL[r]}</button>
+                    ))}</div>
+                    <label>날짜 <input type="date" value={recs[selBid]?.date ?? ""} onChange={(e) => setRec(selBid, { date: e.target.value })} /></label>
+                    <label>메모 <input type="text" value={recs[selBid]?.memo ?? ""} onChange={(e) => setRec(selBid, { memo: e.target.value })} /></label>
+                    <p className="note">이 브라우저에 저장되며 행정 화면의 현장 확인 기록과 같은 저장소를 씁니다.</p>
+                    <button className="small" onClick={() => setRecOpen(false)}>닫기</button>
+                  </div>
+                )}
               </>
             )}
             <h3>높이</h3>

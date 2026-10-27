@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import MapView from "../MapView";
+import AdminView from "./AdminView";
 
-export const metadata: Metadata = { title: "온지붕 · 건물 단위 지도" };
+export const metadata: Metadata = { title: "온지붕 · 행정 화면", robots: { index: false, follow: false } };
 
 export default function Page() {
-  return <MapView />;
+  return <AdminView />;
 }
