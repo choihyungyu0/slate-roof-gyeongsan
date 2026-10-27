@@ -251,3 +251,11 @@
 .a2 .rangebar.l { justify-content: flex-start; }
 .a2 .rangebar.l > span { min-width: 92px; text-align: right; }
 .a2 dd, .a2 dt, .a2 p, .a2 td, .a2 span { word-break: keep-all; }
+
+/* 카드가 적은 화면: 2열 그리드가 남은 높이를 채운다 */
+.a2-pane.scroll > .a2-cards.fill { flex: 1 0 auto; grid-auto-rows: minmax(min-content, 1fr); }
+.a2 table.t td.sc { font-weight: 700; font-size: 13.5px; background: transparent; vertical-align: middle; }
+.a2 table.t td { vertical-align: middle; }
+.a2-cards.c2 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.a2 .rangebar.l { padding-right: 24px; }
+.a2 .rangebar.l i { flex: 1; width: auto; min-width: 100px; max-width: 520px; }

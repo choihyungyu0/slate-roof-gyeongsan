@@ -105,7 +105,7 @@ function hit(recs: Record<string, Rec>, ids: string[]) {
   return { ...c, judged, rate: judged ? c["맞음"] / judged : null };
 }
 const Z = ({ n }: { n: number }) => (n ? <>{n.toLocaleString()}</> : <span className="z">0</span>);
-const pct = (r: number | null) => (r == null ? "—" : `${(r * 100).toFixed(1)}%`);
+const pct = (r: number | null) => (r == null ? "기록 없음" : `${(r * 100).toFixed(1)}%`);
 const statusOf = (r?: Rec): Status => r?.status ?? "미안내";
 const SENT: Status[] = ["안내 발송", "신청", "현장 확인", "선정", "처리 완료"];
 // 진행 기호: ○ 아직 안내 전 · ◐ 진행 중 · ● 모두 처리 완료(또는 대상 아님)
@@ -275,6 +275,7 @@ export default function AdminView() {
     laws.some((l) => !l.support) && `관련 법령: ${joinLaws(laws.filter((l) => !l.support))}`].filter(Boolean).join(" / ");
   const asbestosArts = laws.filter((l) => l.law === "석면안전관리법").map((l) => l.article.replace(/^제|조$/g, "")).join("·");
 
+  const hasJ = Object.keys(jibun).length > 0;
   const listAll = bld.filter((b) => (fEmd === "전체" || b.p.emd === fEmd)
     && (fKind === "전체" || (fKind === "혼합" ? b.p.rc === "혼합" : b.p.rc !== "혼합"))
     && !(hideSup && recs[b.id]?.sup));
@@ -434,7 +435,7 @@ export default function AdminView() {
     <dl>
       <dt>지금 할 일</dt><dd>상위 {e.top}동 안내문 발송 + 이장 회의용 리별 목록 전달</dd>
       <dt>왜</dt><dd>확실 {e.sure.toLocaleString()}~최대 {e.max.toLocaleString()}동, 이 중 코드가 놓친 집 {e.miss.toLocaleString()}동</dd>
-      <dt>어디부터</dt><dd>{e.ri.slice(0, 2).map(([k, n]) => `${k} ${n}동`).join(" · ") || "—"}</dd>
+      <dt>어디부터</dt><dd>{e.ri.slice(0, 2).map(([k, n]) => `${k} ${n}동`).join(" · ") || "없음"}</dd>
       <dt>집행 근거</dt><dd className="sub">해당 연도 슬레이트 처리 지원사업 공고 · 관련 법령 석면안전관리법 제{asbestosArts || "25·26"}조</dd>
     </dl>
   );
@@ -477,7 +478,7 @@ export default function AdminView() {
         </a>
         <div className="right">
           <select className="control" aria-label="지역" value="경산시" onChange={() => undefined}><option>경산시</option></select>
-          <select className="control" aria-label="역할" value={role} title="역할은 첫 화면 순서만 바꿉니다 — 어느 역할이든 모든 화면을 볼 수 있습니다"
+          <select className="control" aria-label="역할" value={role} title="역할은 첫 화면 순서만 바꿉니다. 어느 역할이든 모든 화면을 볼 수 있습니다"
             onChange={(e) => { const r = e.target.value as Role; setRole(r); if (mode === "work") go(ROLE_START[r]); }}>
             {(Object.keys(ROLE_LABEL) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </select>
@@ -494,10 +495,10 @@ export default function AdminView() {
       {pop === "help" && (
         <div className="a2-pop" role="dialog" aria-label="도움말">
           <h3>이렇게 씁니다</h3>
-          <p><b>올해 할 일</b> — 명부 상위 읍면부터 안내문을 보내고 이장 회의에 리별 목록을 전달합니다.</p>
-          <p><b>명부</b> — 점수순 대상 집. 행을 누르면 오른쪽에 대장 기재와 점수 근거가 나옵니다.</p>
-          <p><b>진행 현황·현장 확인</b> — 진행 상태와 확인 결과는 이 브라우저에만 저장됩니다. 기록 CSV로 주고받습니다.</p>
-          <p><b>심사·검증</b> — 판정 규칙, 검증 결과, 점수 산식, 데이터 출처, 근거 법령.</p>
+          <p><b>올해 할 일</b>: 명부 상위 읍면부터 안내문을 보내고 이장 회의에 리별 목록을 전달합니다.</p>
+          <p><b>명부</b>: 점수순 대상 집. 행을 누르면 오른쪽에 대장 기재와 점수 근거가 나옵니다.</p>
+          <p><b>진행 현황·현장 확인</b>: 진행 상태와 확인 결과는 이 브라우저에만 저장됩니다. 기록 CSV로 주고받습니다.</p>
+          <p><b>심사·검증</b>: 판정 규칙, 검증 결과, 점수 산식, 데이터 출처, 근거 법령.</p>
           <p className="sub">{POLICY}.</p>
           <button className="btn sm" onClick={() => setPop("")}>닫기</button>
         </div>
@@ -545,8 +546,8 @@ export default function AdminView() {
                     <Kpi l="코드가 놓친 집" v={`최대 ${(sum.max - sum.code).toLocaleString()}`} u="동" d="지붕 코드만 세면 빠지는 집" />
                     <Kpi l="올해 배정" v={<input type="number" min={0} aria-label="올해 배정 동수" value={quota} onChange={(e) => setQuota(Number(e.target.value))} />} u="동" d="입력 · 2026년 95동(보도)" />
                     <Kpi l="안내 발송" v={sent.toLocaleString()} u="동" d={`배정 ${quota}동 대비`} />
-                    <Kpi muted={!allRec.judged} l="현장 확인 적중률" v={allRec.judged ? pct(allRec.rate) : "—"} d={allRec.judged ? `맞음 ${allRec["맞음"]} / 판정 ${allRec.judged}동` : "기록 없음"} />
-                    <Kpi l="지금 속도면" v={quota > 0 ? `${(sum.sure / quota).toFixed(1)}~${(sum.max / quota).toFixed(1)}` : "—"} u="년" d={`연 ${quota}동 처리 시 · 단순 환산`} />
+                    <Kpi muted={!allRec.judged} l="현장 확인 적중률" v={allRec.judged ? pct(allRec.rate) : "기록 없음"} d={allRec.judged ? `맞음 ${allRec["맞음"]} / 판정 ${allRec.judged}동` : "현장 확인을 기록하면 계산"} />
+                    <Kpi l="지금 속도면" v={quota > 0 ? `${(sum.sure / quota).toFixed(1)}~${(sum.max / quota).toFixed(1)}` : "배정 입력"} u={quota > 0 ? "년" : undefined} d={`연 ${quota}동 처리 시 · 단순 환산`} />
                   </div>
                   <div className="a2-cards">
                         {emdRows.slice(0, 3).map((e, i) => (
@@ -562,14 +563,15 @@ export default function AdminView() {
                   <div style={{ display: "flex", gap: 12, flex: 1, minHeight: 0 }}>
                       <div className="a2-tbl">
                         <table className="t">
-                          <colgroup><col style={{ width: 64 }} /><col style={{ width: 150 }} /><col /><col style={{ width: 120 }} /><col style={{ width: 150 }} /><col style={{ width: 72 }} /></colgroup>
-                          <thead><tr><th className="r">순위</th><th>읍면동</th><th>확실 ~ 최대</th><th className="r">상위 95 포함</th><th className="r">안내 · 신청 · 완료</th><th className="c">진행</th></tr></thead>
+                          <colgroup><col style={{ width: 64 }} /><col style={{ width: 140 }} /><col /><col style={{ width: 130 }} /><col style={{ width: 120 }} /><col style={{ width: 150 }} /><col style={{ width: 72 }} /></colgroup>
+                          <thead><tr><th className="r">순위</th><th>읍면동</th><th>확실 ~ 최대</th><th className="r">코드가 놓친 집</th><th className="r">상위 95 포함</th><th className="r">안내 · 신청 · 완료</th><th className="c">진행</th></tr></thead>
                           <tbody>{emdRows.map((e, i) => (
                             <tr key={e.name} aria-selected={curEmd === e.name} onClick={() => setCurEmd(e.name)}>
                               <td className="r sub">{i + 1}</td><td><b>{e.name}</b></td>
                               <td><span className="rangebar l"><span>{e.sure.toLocaleString()} ~ {e.max.toLocaleString()}</span>
                                 <i aria-hidden="true"><b className="mx" style={{ width: `${(e.max / maxEmd) * 100}%` }} /><b className="su" style={{ width: `${(e.sure / maxEmd) * 100}%` }} /></i></span></td>
-                              <td className="r">{e.top ? <b>{e.top}</b> : <span className="sub">0</span>}</td>
+                              <td className="r"><Z n={e.miss} /></td>
+                              <td className="r">{e.top ? <b>{e.top}</b> : <span className="z">0</span>}</td>
                               <td className="r">{SENT.reduce((n, s) => n + e.st[s], 0)} · {e.st["신청"] + e.st["현장 확인"] + e.st["선정"] + e.st["처리 완료"]} · {e.st["처리 완료"]}</td>
                               <td className="c"><span className="sym" title={SYM_LABEL[e.sym]}>{e.sym}</span></td>
                             </tr>
@@ -625,13 +627,13 @@ export default function AdminView() {
                       <button className="btn" onClick={exportVisits}>방문 목록 CSV</button>
                       <button className="btn primary" onClick={exportExcel}>엑셀 명부</button>
                     </div>
-                    <p className="a2-note">{fEmd} · 대상 {listAll.length.toLocaleString()}동 중 {listShown.length.toLocaleString()}동 · 점수순{Object.keys(jibun).length ? ` · 지번 ${Object.keys(jibun).length.toLocaleString()}건 불러옴(화면은 가림)` : " · 지번 미결합(행정망 파일을 불러오면 엑셀에 들어감)"}</p>
+                    <p className="a2-note">{fEmd} · 대상 {listAll.length.toLocaleString()}동 중 {listShown.length.toLocaleString()}동 · 점수순{hasJ ? ` · 지번 ${Object.keys(jibun).length.toLocaleString()}건 불러옴(화면은 가림, 엑셀에만 들어감)` : " · 지번은 행정망 파일을 불러오면 표시"}</p>
                     <div className="a2-tbl">
                       <table className="t">
                         <thead><tr>
                           <th><input type="checkbox" aria-label="전체 선택" checked={listShown.length > 0 && listShown.every((b) => sel.has(b.id))}
                             onChange={(e) => setSel(e.target.checked ? new Set(listShown.map((b) => b.id)) : new Set())} /></th>
-                          <th className="r">순위</th><th>대장 PK</th><th>법정리</th><th>지번(가림)</th><th className="r">사용승인</th><th>지붕 코드</th><th>자유기재 원문</th><th>기재</th><th className="r">점수</th><th>진행 상태</th><th>확인 결과</th>
+                          <th className="r">순위</th><th>대장 PK</th><th>법정리</th>{hasJ && <th>지번(가림)</th>}<th className="r">사용승인</th><th>지붕 코드</th><th>자유기재 원문</th><th>기재</th><th className="r">점수</th><th>진행 상태</th><th>확인 결과</th>
                         </tr></thead>
                         <tbody>{listShown.map((b) => {
                           const r = recs[b.id];
@@ -640,11 +642,11 @@ export default function AdminView() {
                               <td onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`${b.id} 선택`} checked={sel.has(b.id)} onChange={(e) => {
                                 const s = new Set(sel); if (e.target.checked) s.add(b.id); else s.delete(b.id); setSel(s);
                               }} /></td>
-                              <td className="r">{b.p.pr}</td><td className="mono" title={b.id}>{b.x.pk ?? "—"}</td><td>{b.p.emd} {b.x.ri && b.x.ri !== b.p.emd ? b.x.ri : ""}</td>
-                              <td className="mono jb">{maskJibun(jibun[b.id]) || <span className="sub">—</span>}</td><td className="r">{b.p.year ?? "불명"}</td>
-                              <td>{b.p.roof || "—"}</td><td title={b.p.etc}>{b.p.etc || "—"}</td>
+                              <td className="r">{b.p.pr}</td><td className="mono" title={b.id}>{b.x.pk ?? "없음"}</td><td>{b.p.emd} {b.x.ri && b.x.ri !== b.p.emd ? b.x.ri : ""}</td>
+                              {hasJ && <td className="mono jb">{maskJibun(jibun[b.id]) || <span className="sub">없음</span>}</td>}<td className="r">{b.p.year ?? "불명"}</td>
+                              <td>{b.p.roof || <span className="sub">빈값</span>}</td><td title={b.p.etc}>{b.p.etc || <span className="sub">빈값</span>}</td>
                               <td>{b.p.rc === "혼합" ? <span className="a2-chip mix">혼합</span> : <span className="a2-chip sure">단독</span>}</td>
-                              <td className="r score">{b.p.ps!.toFixed(1)}</td>
+                              <td className="r sc">{b.p.ps!.toFixed(1)}</td>
                               <td onClick={(e) => e.stopPropagation()}>{r?.sup ? <span className="a2-chip ref">기지원(제외)</span> : (
                                 <select aria-label="진행 상태" value={statusOf(r)} onChange={(e) => setRec(b.id, { status: e.target.value as Status })}>
                                   {STATUSES.map((s) => <option key={s}>{s}</option>)}</select>)}</td>
@@ -663,11 +665,11 @@ export default function AdminView() {
                           <p className="eyebrow">{curB.p.pr}위 / {bld.length.toLocaleString()}동 · {curB.id}</p>
                           <h2>{curB.p.emd} {curB.x.ri && curB.x.ri !== curB.p.emd ? curB.x.ri : ""}</h2>
                           <dl className="kv" style={{ marginTop: 8 }}>
-                            <dt>대장 PK</dt><dd className="num" style={{ textAlign: "left" }}>{curB.x.pk ?? "—"}</dd>
-                            <dt>법정리</dt><dd>{curB.x.ri ?? "—"}</dd>
+                            <dt>대장 PK</dt><dd className="num" style={{ textAlign: "left" }}>{curB.x.pk ?? "없음"}</dd>
+                            <dt>법정리</dt><dd>{curB.x.ri ?? "없음"}</dd>
                             <dt>사용승인</dt><dd>{curB.p.year ?? "불명"}{curB.p.area != null ? ` · 건축면적 ${curB.p.area}㎡` : ""}</dd>
                           </dl>
-                          <h4>지붕 — 코드 vs 자유기재 원문</h4>
+                          <h4>지붕: 코드와 자유기재 원문</h4>
                           <dl className="kv">
                             <dt>지붕 코드</dt><dd>{curB.p.roof || <span className="sub">(빈값)</span>}</dd>
                             <dt>원문</dt><dd>{markSlate(curB.p.etc)}</dd>
@@ -713,7 +715,7 @@ export default function AdminView() {
                       <tbody>{emdRows.filter((e) => e.ids.length).map((e) => (
                         <tr key={e.name}><td><b>{e.name}</b></td><td className="r">{e.ids.length.toLocaleString()}</td>
                           {STATUSES.map((s) => <td key={s} className="r"><Z n={e.st[s]} /></td>)}
-                          <td className="r">{e.st["처리 완료"] ? pct(e.st["처리 완료"] / e.ids.length) : <span className="z">—</span>}</td><td className="c"><span className="sym">{e.sym}</span></td></tr>
+                          <td className="r">{e.st["처리 완료"] ? pct(e.st["처리 완료"] / e.ids.length) : <span className="z">0%</span>}</td><td className="c"><span className="sym">{e.sym}</span></td></tr>
                       ))}</tbody>
                     </table>
                   </div>
@@ -760,11 +762,11 @@ export default function AdminView() {
                         const b = byId.get(id)!; const r = recs[id] ?? EMPTY;
                         return (
                           <tr key={id}>
-                            <td className="r">{b.p.pr}</td><td className="mono" title={id}>{b.x.pk ?? id}</td><td>{b.p.emd}</td><td>{b.p.etc || "—"}</td>
+                            <td className="r">{b.p.pr}</td><td className="mono" title={id}>{b.x.pk ?? id}</td><td>{b.p.emd}</td><td>{b.p.etc || <span className="sub">빈값</span>}</td>
                             <td><select aria-label="결과" value={r.result} onChange={(e) => setRec(id, { result: e.target.value as Result, date: r.date || today() })}>
-                              <option value="">—</option>{RESULTS.map((x) => <option key={x} value={x}>{RESULT_LABEL[x]}</option>)}</select></td>
+                              <option value="">선택</option>{RESULTS.map((x) => <option key={x} value={x}>{RESULT_LABEL[x]}</option>)}</select></td>
                             <td><select aria-label="방법" value={r.method} onChange={(e) => setRec(id, { method: e.target.value as Rec["method"] })}>
-                              <option value="">—</option><option>현장</option><option>로드뷰</option></select></td>
+                              <option value="">선택</option><option>현장</option><option>로드뷰</option></select></td>
                             <td><input type="date" aria-label="날짜" value={r.date} onChange={(e) => setRec(id, { date: e.target.value })} /></td>
                             <td><input type="checkbox" aria-label="빈집" checked={Boolean(r.vacant)} onChange={(e) => setRec(id, { vacant: e.target.checked })} /></td>
                             <td><input type="text" aria-label="메모" value={r.memo} onChange={(e) => setRec(id, { memo: e.target.value })} /></td>
@@ -778,7 +780,7 @@ export default function AdminView() {
               )}
 
               {view === "demand" && (
-                <div className="a2-pane scroll narrow">
+                <div className="a2-pane scroll">
                   <div className="a2-head"><h1>수요 조사</h1><p>기후부 수요 조사 제출 근거용 · 대장 기재 기준 단순 환산</p>
                     <div className="right"><button className="btn" onClick={exportBudget}>결과 CSV 내보내기</button></div></div>
                   <div className="a2-bar" style={{ gap: 18 }}>
@@ -801,12 +803,12 @@ export default function AdminView() {
               )}
 
               {view === "rules" && rv && (
-                <div className="a2-pane scroll narrow">
+                <div className="a2-pane scroll">
                   <div className="a2-head"><h1>판정 규칙</h1><p>지붕 자유기재 고유 표기 2,662종을 규칙표 23개로 전수 분류 · 규칙에 안 걸린 표기 0종 · 판정 규칙 v1</p></div>
                   <div className="a2-cards c2">
                     <div className="a2-card"><div className="code">RUL-01</div><h3>규칙표 23개 <span className="a2-chip ok">채택</span></h3>
                       <p>위에서부터 차례로 적용해 처음 걸린 규칙으로 분류합니다. 정규식과 표기 예시는 엑셀 「판정 근거」 시트에도 들어갑니다.</p></div>
-                    <div className="a2-card"><div className="code">RUL-02</div><h3>판정 보류 — '스레트기와' 계열 <span className="a2-chip hold">보류</span></h3>
+                    <div className="a2-card"><div className="code">RUL-02</div><h3>판정 보류: '스레트기와' 계열 <span className="a2-chip hold">보류</span></h3>
                       <p>표기 모호 주택 {rv.amb.n}동({rv.amb.kinds}종). 문자열만으로 석면 슬레이트인지 기와형 제품인지 알 수 없어, 지붕 코드로도 확인되지 않는 <b>{rv.amb.excluded}동({rv.amb.excluded_kinds}종)</b>은 집계에서 뺐습니다. 나머지 {rv.amb.n - rv.amb.excluded}동은 지붕 코드가 슬레이트라 확실에 들어갑니다.</p></div>
                   </div>
                   <div className="a2-tbl fit">
@@ -815,7 +817,7 @@ export default function AdminView() {
                       <tbody>{rules.map((r) => (
                         <tr key={r.order}><td className="mono">R-{String(r.order).padStart(2, "0")}</td>
                           <td>{/슬레이트/.test(r.label) && !/비/.test(r.label) ? <span className="a2-chip sure">{r.label}</span> : r.label === "혼합" ? <span className="a2-chip mix">{r.label}</span> : /모호|보류|불명/.test(r.label) ? <span className="a2-chip hold">{r.label}</span> : <span className="a2-chip ref">{r.label}</span>}</td>
-                          <td title={r.note}>{r.note}</td><td title={r.examples.join(" · ")}>{r.examples.join(" · ")}</td><td className="r">{r.n.toLocaleString()}</td></tr>
+                          <td title={r.note}>{r.note.replace(/\s*—\s*/g, ": ")}</td><td title={r.examples.join(" · ")}>{r.examples.join(" · ")}</td><td className="r">{r.n.toLocaleString()}</td></tr>
                       ))}</tbody>
                     </table>
                   </div>
@@ -830,16 +832,22 @@ export default function AdminView() {
               )}
 
               {view === "verify" && rv && (
-                <div className="a2-pane scroll narrow">
-                  <div className="a2-head"><h1>검증</h1><p>사람이 확인한 정답과 비교한 값은 아직 없습니다 — 현장 확인 기록이 쌓이면 적중률로 대체합니다</p></div>
-                  <div className="a2-cards c2">
-                    <div className="a2-card"><div className="code">VAL-01 · 독립 판독 교차 확인</div>
-                      <h3>LLM 따로 분류 vs 규칙표 <span className="a2-chip ok">채택</span></h3>
+                <div className="a2-pane scroll">
+                  <div className="a2-head"><h1>검증</h1><p>사람이 확인한 정답과 비교한 값은 아직 없습니다. 현장 확인 기록이 쌓이면 적중률로 대체합니다</p></div>
+                  <div className="a2-cards c2 fill">
+                    <div className="a2-card"><div className="code">VAL-01 · 1차 교차 확인</div>
+                      <h3>1차 교차 확인: LLM 따로 분류와 규칙표 <span className="a2-chip ok">채택</span></h3>
                       <div className="a2-figs">
                         <span><span className="a2-big">{((sum.llm.same4 / sum.llm.n) * 100).toFixed(1)}%</span><span className="sub"> 4분류 일치</span></span>
                         <span><span className="a2-big">{((sum.llm.same2 / sum.llm.n) * 100).toFixed(1)}%</span><span className="sub"> 슬레이트 포함 여부</span></span>
                       </div>
                       <p>표기 {sum.llm.n.toLocaleString()}종 중 4분류 {sum.llm.same4.toLocaleString()}종, 슬레이트 포함 여부 {sum.llm.same2.toLocaleString()}종 일치. 불일치 87종(주택류 90건)은 개정 검토 대상입니다. 정확도가 아니라 두 방법의 일치율이며, 같은 계열 모델이라 완전히 독립은 아닙니다.</p></div>
+                    <div className="a2-card"><div className="code">VAL-01b · 2차 독립 판독 (본선 전)</div>
+                      <h3>2차 독립 판독: 규칙표를 보지 않고 다시 분류 <span className="a2-chip ok">채택</span></h3>
+                      <div className="a2-figs"><span><span className="a2-big">2,183 / 2,184</span><span className="sub">종 일치</span></span>
+                        <span><span className="a2-big">99.95%</span><span className="sub">슬레이트 포함 여부</span></span></div>
+                      <p>규칙표를 보지 않은 독립 판독으로 건물 도형 연결분 표기 2,378종을 다시 분류. 양쪽 다 판정한 2,184종 중 2,183종 일치. 불일치 1종(천연슬레이트잇기, 천연석이라 석면 아님)은 규칙표 개정 대상. 독립 판독이 판단을 보류한 101종(건물 523동)은 사람 검토표로 분리. 같은 계열 모델이라 완전 독립은 아님.</p>
+                      <p><a href="/data/xcheck_review.csv" download="온지붕_교차검증_불일치_검토표.csv">사람 검토표 CSV 내려받기 ↓</a> <span className="sub">· 102행(불일치 1 + 판정 보류 101) · reports/xcheck_20261027</span></p></div>
                     <div className="a2-card"><div className="code">VAL-02 · 항공영상 판독 실험</div>
                       <h3>영상으로 슬레이트 가려내기 <span className="a2-chip no">기각</span></h3>
                       <div className="a2-figs">
@@ -847,7 +855,7 @@ export default function AdminView() {
                         <span><span className="a2-big">0.997</span><span className="sub"> 연도만</span></span>
                         <span><span className="a2-big red">0.602</span><span className="sub"> 오래된 비슬레이트</span></span>
                       </div>
-                      <p><b>기각 이유</b> — 영상 모델의 ROC-AUC 0.891은 슬레이트를 알아봐서가 아니라 오래된 집과 새 집을 가려서 나온 값입니다. 영상을 보지 않고 사용승인연도 하나만 써도 0.997이 나오고, 같은 모델을 '오래됐지만 대장이 슬레이트가 아닌 주택' 300동에 적용하면 0.602로 떨어집니다. 그래서 영상 점수는 순위에 넣지 않고 지도에서 참고로만 보여줍니다.</p></div>
+                      <p><b>기각 이유:</b> 영상 모델의 ROC-AUC 0.891은 슬레이트를 알아봐서가 아니라 오래된 집과 새 집을 가려서 나온 값입니다. 영상을 보지 않고 사용승인연도 하나만 써도 0.997이 나오고, 같은 모델을 '오래됐지만 대장이 슬레이트가 아닌 주택' 300동에 적용하면 0.602로 떨어집니다. 그래서 영상 점수는 순위에 넣지 않고 지도에서 참고로만 보여줍니다.</p></div>
                     <div className="a2-card"><div className="code">VAL-03 · 연도만으로 고르면</div>
                       <h3>1990년 이전 주택 = 슬레이트? <span className="a2-chip no">기각</span></h3>
                       <div><span className="a2-big">{((rv.old.max / rv.old.n) * 100).toFixed(1)}%</span><span className="sub"> 대장 슬레이트(최대 기준)</span></div>
@@ -861,10 +869,10 @@ export default function AdminView() {
               )}
 
               {view === "formula" && (
-                <div className="a2-pane scroll narrow">
+                <div className="a2-pane scroll">
                   <div className="a2-head"><h1>점수 산식</h1><p>점수 = Σ(항목 점수 × 가중치) ÷ Σ가중치 × 100 · 먼저 찾아갈 순서를 정하는 정책 점수이며 예측 정확도가 있는 값이 아닙니다</p></div>
                   <div className="a2-card"><div className="code">PRI-01</div><h3>{POLICY} <span className="a2-chip ok">원칙</span></h3></div>
-                  <div className="a2-cards c2">
+                  <div className="a2-cards c2 fill">
                     <div className="a2-tbl fit">
                       <table className="t">
                         <thead><tr><th>항목</th><th className="r">기본 가중치</th><th>근거</th></tr></thead>
@@ -890,7 +898,7 @@ export default function AdminView() {
               )}
 
               {view === "data" && join && (
-                <div className="a2-pane scroll narrow">
+                <div className="a2-pane scroll">
                   <div className="a2-head"><h1>데이터·출처</h1><p>명부 {bld.length.toLocaleString()}동에 무엇을 어떤 단위로 결합했나</p></div>
                   <div className="a2-tbl fit">
                     <table className="t">
@@ -898,12 +906,21 @@ export default function AdminView() {
                       <tbody>{join.rows.map((r) => <tr key={r.name}><td><b>{r.name}</b></td><td>{r.org}</td><td>{r.date}</td><td>{r.unit}</td><td className="r">{r.rate}</td></tr>)}</tbody>
                     </table>
                   </div>
-                  <p className="a2-note">지번은 공개 자료에 넣지 않으며 행정망 내부 파일로만 결합합니다. 주민등록 인구는 10세 구간으로 제공되어 65세가 아닌 70세 이상 비율로 집계했습니다. 공시가격은 넣지 않았습니다.</p>
+                  <div className="a2-cards c2 fill">
+                    <div className="a2-card"><div className="code">DAT-01 · 결합 키</div><h3>건물 ID와 관리건축물대장 PK <span className="a2-chip ok">채택</span></h3>
+                      <p>명부의 모든 집은 건물 ID(B + 6자리)와 대장 PK를 함께 가집니다. 행정망 자료(주소·소유자)는 이 두 값으로 붙이고, 공개 화면에는 넣지 않습니다.</p></div>
+                    <div className="a2-card"><div className="code">DAT-02 · 지번</div><h3>지번은 행정망 파일로만 <span className="a2-chip hold">내부 전용</span></h3>
+                      <p>배포 자료에 지번이 없습니다. 담당자가 행정망 지번 파일을 불러오면 화면에는 가려서 보이고, 저장되지 않으며 엑셀 명부에만 들어갑니다.</p></div>
+                    <div className="a2-card"><div className="code">DAT-03 · 고령인구</div><h3>70세 이상 비율, 행정동 단위 <span className="a2-chip ref">참고</span></h3>
+                      <p>행정안전부 주민등록 인구는 10세 구간으로 제공되어 65세가 아닌 70세 이상 비율로 집계했습니다. 점수 가중치 기본값은 0입니다.</p></div>
+                    <div className="a2-card"><div className="code">DAT-04 · 제외한 자료</div><h3>공시가격은 넣지 않음 <span className="a2-chip no">제외</span></h3>
+                      <p>개별주택가격은 순위·점수·화면 어디에도 쓰지 않습니다.</p></div>
+                  </div>
                 </div>
               )}
 
               {view === "law" && (
-                <div className="a2-pane scroll narrow">
+                <div className="a2-pane scroll">
                   <div className="a2-head"><h1>근거 법령</h1><p>국가법령정보센터 Open API로 조회한 조문 · 번호·제목은 응답 그대로</p></div>
                   {laws.length ? (
                     <div className="a2-tbl fit">
@@ -915,7 +932,12 @@ export default function AdminView() {
                       </table>
                     </div>
                   ) : <p className="a2-note">아직 조회하지 못했습니다.</p>}
-                  {lawLine && <div className="a2-card"><div className="code">안내문 하단 문구</div><p style={{ marginTop: 2 }}>{lawLine}</p></div>}
+                  <div className="a2-cards c2 fill">
+                    <div className="a2-card"><div className="code">LAW-01 · 안내문 하단 문구</div><h3>안내문에 들어가는 한 줄 <span className="a2-chip ok">사용 중</span></h3>
+                      <p>{lawLine || "아직 조회하지 못했습니다."}</p></div>
+                    <div className="a2-card"><div className="code">LAW-02 · 표기 기준</div><h3>본문에 비용 지원이 있어야 '근거' <span className="a2-chip ref">원칙</span></h3>
+                      <p>조문 본문에 비용·보조를 지원한다는 내용이 있는 조문만 "근거:"로 쓰고, 나머지는 "관련 법령:"으로 법령명과 조문 번호만 적습니다. 조문 번호·제목은 국가법령정보센터 Open API 응답 그대로입니다.</p></div>
+                  </div>
                 </div>
               )}
             </>

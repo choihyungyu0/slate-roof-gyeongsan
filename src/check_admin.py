@@ -86,6 +86,7 @@ with sync_playwright() as p:
     c0 = cards.nth(0).inner_text()
     ok(cards.count() == 3 and all(k in c0 for k in ("지금 할 일", "왜", "어디부터", "집행 근거", "석면안전관리법 제25·26조", "코드가 놓친 집")), f"1~3순위 카드: {c0.splitlines()[0]}")
     ok("온지붕 점수는 안내·현장 확인 순서에만" in pg.inner_text(".a2-head"), "선정 기준 문구")
+    ok("코드가 놓친 집" in pg.inner_text(".a2-tbl thead"), "읍면동 표 '코드가 놓친 집' 열")
     pg.locator(".a2-tbl table.t tbody tr").nth(0).click()
     side = pg.inner_text("aside.a2-side")
     ok("안내문 HWPX" in side and "이장용 리별 목록" in side and "엑셀 명부" in side, "읍면 행 → 오른쪽 할 일 패널")
@@ -99,11 +100,14 @@ with sync_playwright() as p:
     ok("안내·현장 확인 순서에만" in pg.inner_text(".policy-inline"), "명부 선정 기준 문구")
     rows = pg.locator("tr[data-id]")
     t2, t6 = rows.nth(1).get_attribute("data-id"), rows.nth(5).get_attribute("data-id")
-    s2, s6 = rows.nth(1).locator("td.score").inner_text(), rows.nth(5).locator("td.score").inner_text()
+    s2, s6 = rows.nth(1).locator("td.sc").inner_text(), rows.nth(5).locator("td.sc").inner_text()
     p2, p6 = rows.nth(1).locator("td").nth(1).inner_text(), rows.nth(5).locator("td").nth(1).inner_text()
     ok(t2 == "B043642" and s2 == "93.0" and p2 == "2", f"B043642 93.0점·2위: {t2} {s2} {p2}")
     ok(t6 == "B016618" and s6 == "91.8" and p6 == "6", f"B016618 91.8점·6위: {t6} {s6} {p6}")
     ok(rows.nth(1).locator("td.mono").first.inner_text().isdigit(), "대장 PK 열")
+    ok("지번(가림)" not in pg.inner_text(".a2-tbl thead") and "지번은 행정망 파일을 불러오면 표시" in pg.inner_text(".a2-pane"), "지번 열은 불러오기 전 숨김")
+    cs = pg.evaluate("(()=>{const c=getComputedStyle(document.querySelector('tr[data-id] td.sc'));return [c.display,c.verticalAlign,c.backgroundColor]})()")
+    ok(cs[0] == "table-cell" and cs[1] == "middle" and cs[2] in ("rgba(0, 0, 0, 0)", "transparent"), f"점수 칸 정렬·배경 {cs}")
     rows.nth(5).click()
     sd = pg.inner_text("aside.a2-side")
     ok("91.8" in sd and pg.locator("aside .bars > div").count() == 6 and pg.locator("aside .kv b.red").count() >= 1, "행 → 상세(점수 크게·막대 6개·원문 슬레이트 빨간 글씨)")
@@ -209,6 +213,11 @@ with sync_playwright() as p:
     pg.get_by_role("button", name="검증 믿어도 되나").click()
     vt = pg.inner_text(".a2-pane")
     ok(all(k in vt for k in ("0.891", "0.997", "0.602", "기각", "96.7%", "99.2%")), "검증 카드(채택·기각)")
+    ok("VAL-01b" in vt and "2,183 / 2,184" in vt and "99.95%" in vt and "1차 교차 확인" in vt and "기각 이유:" in vt, "2차 독립 판독 카드·1차 제목")
+    with pg.expect_download() as d:
+        pg.get_by_text("사람 검토표 CSV 내려받기").click()
+    xr = Path(d.value.path()).read_bytes().decode("utf-8-sig").strip().splitlines()
+    ok(len(xr) == 103 and xr[0].startswith("구분,자유기재 원문"), f"사람 검토표 CSV {len(xr) - 1}행")
     pg.get_by_role("button", name="점수 산식 왜 이 순서인가").click()
     ok("68~91" in pg.inner_text(".a2-pane") and "고령인구 비율" in pg.inner_text(".a2-pane"), "점수 산식·민감도")
     pg.get_by_role("button", name="데이터·출처 무엇을 결합했나").click()
@@ -219,6 +228,8 @@ with sync_playwright() as p:
     mp = ctx.new_page(); mp.goto(URL + "/data/admin_extra.json")
     ok("platPlc" not in mp.content() and "번지" not in mp.content(), "배포 자료에 지번 없음")
     mp.close()
+    dash = pg.evaluate("[...document.querySelectorAll('.a2 > :not(.print-only)')].map(e=>e.innerText).join(' ')")
+    ok("—" not in dash, "화면 문구에 긴 줄표 없음")
     errs = [e for e in errs if "print-stub" not in e]
     ok(not errs, f"페이지 오류 {errs[:2]}")
 
@@ -230,7 +241,7 @@ with sync_playwright() as p:
     for w, h in ((1280, 720), (1920, 1080)):
         c2 = br.new_context(viewport={"width": w, "height": h}, locale="ko-KR")
         q = c2.new_page()
-        e2 = []
+        e2, dashes = [], []
         q.on("pageerror", lambda e: e2.append(str(e)))
         q.goto(URL + "/admin")
         q.wait_for_selector(".a2-kpi", timeout=120000)
@@ -244,6 +255,9 @@ with sync_playwright() as p:
                 q.locator("tr[data-id]").nth(5).click()
             q.wait_for_timeout(400)
             q.screenshot(path=str(FIG / f"admin_v2_{w}_{k:02d}_{key}.png"))
+            if "—" in q.evaluate("[...document.querySelectorAll('.a2 > :not(.print-only)')].map(e=>e.innerText).join(' ')"):
+                dashes.append(key)
         ok(not e2, f"{w}×{h} 캡처 중 페이지 오류 {e2[:1]}")
+        ok(not dashes, f"{w}×{h} 10개 화면 긴 줄표 없음 {dashes}")
         c2.close()
     br.close()
