@@ -9,3 +9,8 @@ __pycache__/
 data/
 labeling/img/
 web/.vercel
+
+# 제출 서류(개인정보 포함) — 공개 저장소에 올리지 않음
+/*.hwpx
+/*.pdf
+/*.docx
