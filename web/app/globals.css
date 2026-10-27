@@ -168,3 +168,15 @@ button.small:disabled { opacity: .4; cursor: default; }
 .recform .seg button[aria-pressed="true"] { border-color: var(--pick); color: var(--pick); }
 .recform label { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 8px; font-size: 12.5px; color: var(--dim); }
 .recform input { font: inherit; font-size: 12.5px; color: var(--text); background: #111317; border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; }
+.adm-policy { background: #262a32; color: var(--text); text-align: center; padding: 6px 12px; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+.policy-inline { color: var(--pick); font-size: 13px; margin: 0 0 10px; }
+.quota { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; font-size: 14px; }
+.quota b { color: var(--pick); font-size: 16px; font-variant-numeric: tabular-nums; }
+.quota input { width: 72px; font: inherit; color: var(--text); background: #111317; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+.cards.st { grid-template-columns: repeat(7, 1fr); }
+.cards.st .card b { font-size: 20px; }
+label.chk { color: var(--dim); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+tr.sup td { opacity: .55; }
+.suptag { font-size: 12px; color: #17181a; background: var(--dim); border-radius: 999px; padding: 1px 8px; }
+.law-empty { padding: 24px 0; }
+@media print { .notice .to { font-weight: 700; } .notice .blankline { display: inline-block; width: 160pt; border-bottom: 1px solid #000; } }

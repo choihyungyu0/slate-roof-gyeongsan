@@ -3,7 +3,7 @@
 import maplibregl, { type LngLatBoundsLike, type MapGeoJSONFeature } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { bid, csvBlob, EMPTY_REC, isDefault, today, loadRecs, loadWeights, type Rec, type Result, RESULT_LABEL, RESULTS, rescore, saveRecs, saveWeights, W_DEFAULT, W_PARTS, type WKey } from "./shared";
+import { bid, csvBlob, EMPTY_REC, eoScore, isDefault, loadExtra, today, loadRecs, loadWeights, type Rec, type Result, RESULT_LABEL, RESULTS, rescore, saveRecs, saveWeights, W_DEFAULT, W_PARTS, type WKey } from "./shared";
 
 import Tour, { tourSeen } from "./Tour";
 
@@ -22,6 +22,7 @@ type Props = {
   roof?: string; etc?: string; rc?: string; how?: string; year?: number | null; yflag?: number; area?: number | null; sc?: number; st?: number;
   pm?: number; pw?: number; pa?: number;
   ps?: number; pr?: number; pn?: number; ca?: number; cr?: number; cs?: number; cd?: number; ce?: number; cc?: number; ds?: number; dd?: number; de?: number;
+  eo?: number; eor?: number | null; ad?: string | null;
 };
 type Item = { id: number; p: Props; center: [number, number] };
 type Emd = { name: string; houses: number; sure: number; slate: number; share: number; bounds: LngLatBoundsLike; center: [number, number] };
@@ -34,6 +35,7 @@ const SCORE_PARTS: { key: WKey; label: string; w: string; basis: (p: Props) => s
   { key: "cd", label: "어린이집 거리", w: "0.15", basis: (p) => `${p.dd!.toLocaleString()}m` },
   { key: "ce", label: "경로당 거리", w: "0.10", basis: (p) => `${p.de!.toLocaleString()}m` },
   { key: "cc", label: "기재 확실성", w: "0.10", basis: (p) => p.rc ?? "" },
+  { key: "eo", label: "고령인구 비율", w: "0", basis: (p) => (p.eor != null ? `${p.ad} 70세 이상 ${p.eor}%` : "미결합") },
 ];
 
 function ringBounds(geom: GeoJSON.Geometry): [number, number, number, number] {
@@ -94,9 +96,10 @@ export default function MapView() {
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "건축물대장 표제부·GIS건물통합정보(국토교통부) · 브이월드" }));
 
     map.on("load", async () => {
-      const [emdJson, bld] = await Promise.all([
+      const [emdJson, bld, extra] = await Promise.all([
         fetch("/data/emd.geojson").then((r) => r.json() as Promise<GeoJSON.FeatureCollection>),
         loadBuildings(),
+        loadExtra(),
       ]);
       if (VWORLD_KEY) {
         map.addSource("aerial", {
@@ -125,6 +128,8 @@ export default function MapView() {
         const p = f.properties as Props;
         c[p.cat]++;
         if (p.ps != null) {
+          const e = extra.ex[bid(f.id as number)];
+          p.eor = e?.eo ?? null; p.ad = e?.ad ?? null; p.eo = eoScore(e?.eo, extra.lo, extra.hi);
           const b = ringBounds(f.geometry);
           scored.push({ id: f.id as number, p, center: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] });
         }
@@ -176,9 +181,9 @@ export default function MapView() {
   const listShown = listAll.slice(0, listN);
   const downloadList = () => {
     const head = ["목록순번", "시전체순위", "점수", "읍면동", "분류", "지붕자유기재", "사용승인연도", "건축면적", "학교거리m", "어린이집거리m", "경로당거리m", "경도", "위도",
-      "건물ID(행정망 주소 결합용)", "확인결과"];
+      "건물ID(행정망 주소 결합용)", "확인결과", "행정동 70세이상비율(%)"];
     const rows = listShown.map((it, i) => [i + 1, it.p.pr, it.p.ps, it.p.emd, it.p.rc, it.p.etc ?? "", it.p.year ?? "", it.p.area ?? "", it.p.ds, it.p.dd, it.p.de,
-      it.center[0].toFixed(6), it.center[1].toFixed(6), bid(it.id), recs[bid(it.id)]?.result ?? ""]);
+      it.center[0].toFixed(6), it.center[1].toFixed(6), bid(it.id), recs[bid(it.id)]?.result ?? "", it.p.eor ?? ""]);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(csvBlob([head, ...rows]));
     a.download = `찾아가는신청목록_${listEmd}_${listShown.length}동.csv`;
@@ -298,7 +303,7 @@ export default function MapView() {
                     ))}
                   </tbody>
                 </table>
-                <p className="note">먼저 찾아갈 순서를 정하는 정책 점수입니다. 정확도가 있는 예측이 아닙니다. 거리는 직선거리입니다.</p>
+                <p className="note">먼저 찾아갈 순서를 정하는 정책 점수입니다. 정확도가 있는 예측이 아닙니다. 거리는 직선거리입니다. 고령인구 비율은 행정안전부 주민등록 인구(행정동, 10세 구간 자료라 70세 이상으로 집계) 참고 항목이며 기본 가중치는 0입니다.</p>
                 <h3>가중치 조정 {isDefault(weights) ? "(기본값)" : "(조정됨)"}</h3>
                 <div className="weights">
                   {W_PARTS.map(({ key, label }) => (
