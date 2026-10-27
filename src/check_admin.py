@@ -128,6 +128,7 @@ with sync_playwright() as p:
     d.value.save_as(str(hw))
     sec = z.read("Contents/section0.xml").decode("utf-8")
     ok("주소·성명은 행정망에서 채움" in sec and "소유자 및 거주자 귀하" in sec and "해당 연도 공고 금액" in sec and "만 원" not in sec and "소유자의 동의" in sec, "HWPX 안내문 문안")
+    ok("석면안전관리법 제26조" in sec, "안내문 근거 조문 줄")
     with pg.expect_download() as d:
         pg.get_by_text("방문 목록 CSV").click()
     h2 = next(csv.reader(io.StringIO(Path(d.value.path()).read_bytes().decode("utf-8-sig"))))
@@ -193,7 +194,7 @@ with sync_playwright() as p:
     pg.screenshot(path=str(FIG / "admin_04_budget.png"))
     pg.get_by_role("tab", name="근거 법령").click()
     pg.wait_for_timeout(300)
-    print("    근거 법령:", pg.inner_text(".adm-main")[:120])
+    ok(pg.locator(".adm-main table.grid tbody tr").count() == 5, "근거 법령 조문 5개")
     pg.screenshot(path=str(FIG / "admin_05_law.png"))
     # /map 공개 화면에 지번이 없는지
     mp = ctx.new_page(); mp.goto(URL + "/data/admin_extra.json")
