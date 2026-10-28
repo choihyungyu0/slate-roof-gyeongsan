@@ -74,7 +74,13 @@ export default function AskPanel({ onPick }: { onPick: (id: string) => void }) {
   useEffect(() => {
     fetch("/api/ask").then((r) => (r.ok ? r.json() : { enabled: false })).then((j: { enabled?: boolean }) => setOn(Boolean(j.enabled))).catch(() => setOn(false));
   }, []);
-  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns]);
+  // 새 질문·답이 오면 그 질문의 첫 줄(질문과 'AI 답변' 고지)이 보이게 맞춘다
+  useEffect(() => {
+    const body = end.current?.parentElement;
+    const last = body?.querySelectorAll(".ask-turn");
+    const el = last?.[last.length - 1] as HTMLElement | undefined;
+    if (body && el) body.scrollTo({ top: el.offsetTop - body.offsetTop - 8, behavior: "smooth" });
+  }, [turns]);
 
   const ask = async (text: string) => {
     const question = text.trim();
