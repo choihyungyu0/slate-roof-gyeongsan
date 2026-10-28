@@ -11,6 +11,7 @@ import { bid, csvBlob, EMPTY_REC as EMPTY, eoScore, type Extra, loadExtra, loadR
   rescore, saveRecs, type Status, STATUSES, today, W_DEFAULT, W_PARTS } from "../shared";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./admin.css";
+import AskPanel from "./AskPanel";
 import { buildHwpx, type Line } from "./hwpx";
 
 type P = {
@@ -430,6 +431,12 @@ export default function AdminView() {
   const curE = curEmd ? emdRows.find((e) => e.name === curEmd) : undefined;
   const sumSym = { 미안내: stCount["미안내"], 진행: SENT.slice(0, 4).reduce((n, s) => n + stCount[s], 0), 완료: stCount["처리 완료"] };
   const openRoster = (name: string) => { setFEmd(name); setFN(0); setSel(new Set()); go("roster"); };
+  // 질의 도우미에서 누른 건물 → 명부 상세
+  const openBuilding = (id: string) => {
+    if (!byId.has(id)) return;
+    setMode("work"); setFEmd("전체"); setFN(0); setFKind("전체"); setHideSup(false); setSel(new Set()); setCur(id); go("roster");
+    setTimeout(() => document.querySelector(`tr[data-id="${id}"]`)?.scrollIntoView({ block: "center" }), 150);
+  };
 
   const emdTodo = (e: (typeof emdRows)[number]) => (
     <dl>
@@ -945,6 +952,7 @@ export default function AdminView() {
         </main>
       </div>
 
+      {loaded && <AskPanel onPick={openBuilding} />}
       {/* ── 하단 상태바 ── */}
       <footer className="a2-foot">
         <span>판정 규칙 v1</span><span>대장 2026-10-05 조회</span><span>지번은 행정망 파일로만 결합</span>

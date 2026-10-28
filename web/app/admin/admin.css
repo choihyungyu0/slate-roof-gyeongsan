@@ -259,3 +259,38 @@
 .a2-cards.c2 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 .a2 .rangebar.l { padding-right: 24px; }
 .a2 .rangebar.l i { flex: 1; width: auto; min-width: 100px; max-width: 520px; }
+
+/* ── 질의 도우미 ── */
+.a2 .ask-fab { position: absolute; right: 20px; bottom: 44px; z-index: 30; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px;
+  border: 0; border-radius: 999px; background: var(--blue); color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 6px 16px rgba(29, 78, 216, .28), 0 2px 4px rgba(16, 24, 40, .12); }
+.a2 .ask-fab:hover { background: #1e40af; }
+.a2 .ask-panel { position: absolute; right: 20px; bottom: 92px; z-index: 31; width: 460px; max-height: calc(100% - 160px); display: flex; flex-direction: column;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px rgba(16, 24, 40, .16), 0 2px 6px rgba(16, 24, 40, .06); overflow: hidden; }
+.a2 .ask-panel header { display: flex; align-items: baseline; gap: 8px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
+.a2 .ask-panel header b { font-size: 15px; }
+.a2 .ask-panel header .sub { font-size: 11.5px; }
+.a2 .ask-panel header .btn { margin-left: auto; }
+.a2 .ask-body { flex: 1; min-height: 120px; overflow: auto; padding: 12px 14px; display: grid; gap: 14px; align-content: start; }
+.a2 .ask-hint { font-size: 12.5px; }
+.a2 .ask-q { justify-self: end; max-width: 85%; margin-left: auto; background: var(--blue-soft); color: var(--ink); border-radius: 10px 10px 2px 10px; padding: 7px 11px; font-size: 13px; font-weight: 600; width: fit-content; }
+.a2 .ask-turn { display: grid; gap: 8px; }
+.a2 .ask-a { display: grid; gap: 8px; }
+.a2 .ask-a > p { white-space: pre-wrap; font-size: 13px; line-height: 1.65; color: var(--ink); }
+.a2 .ask-ev { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 8px 10px; display: grid; gap: 6px; }
+.a2 .ask-evh { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
+.a2 .ask-evh b { color: var(--blue); }
+.a2 .ask-evh span { color: var(--sub); }
+.a2 .ask-cnt { font-size: 12.5px; }
+.a2 .ask-cnt a { cursor: pointer; font-weight: 700; }
+.a2 .ask-ev .sub { font-size: 12px; }
+.a2 table.t.ask-t { font-size: 12px; background: #fff; border: 1px solid var(--line); border-radius: 6px; }
+.a2 table.t.ask-t th { height: 28px; position: static; padding: 0 8px; font-size: 11px; }
+.a2 table.t.ask-t td { height: 30px; padding: 0 8px; max-width: 130px; }
+.a2 table.t.ask-t tr.nohover { cursor: default; }
+.a2 .ask-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 0; border-top: 1px solid var(--line); }
+.a2 .ask-chips .btn { height: 26px; font-size: 11.5px; font-weight: 600; border-radius: 999px; }
+.a2 .ask-in { display: flex; gap: 6px; padding: 10px 14px 12px; }
+.a2 .ask-in .control { flex: 1; padding: 0 10px; }
+.a2 .ask-off { font-size: 12.5px; color: #b42318; background: var(--red-soft); border: 1px solid #fecdca; border-radius: 8px; padding: 10px 12px; margin: 12px 14px; }
+.a2 .ask-wait { font-size: 12px; }

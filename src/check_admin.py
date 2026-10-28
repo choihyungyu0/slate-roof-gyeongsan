@@ -19,12 +19,16 @@ ROOT = Path(__file__).resolve().parents[1]
 FIG = ROOT / "outputs" / "figs"
 URL = sys.argv[1] if len(sys.argv) > 1 else "https://slate-roof-gyeongsan.vercel.app"
 ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--hide-scrollbars"]
+import os
+EXTRA = {"x-vercel-protection-bypass": os.environ["VERCEL_BYPASS"]} if os.environ.get("VERCEL_BYPASS") else {}  # 보호된 미리보기 배포 점검용
 ok = lambda c, m: print(("OK  " if c else "FAIL") + " " + m)
 
 with sync_playwright() as p:
     br = p.chromium.launch(channel="chrome", headless=True, args=ARGS)
-    ctx = br.new_context(viewport={"width": 1920, "height": 1080}, locale="ko-KR", accept_downloads=True)
+    ctx = br.new_context(viewport={"width": 1920, "height": 1080}, locale="ko-KR", accept_downloads=True, extra_http_headers=EXTRA)
     pg = ctx.new_page()
+    if EXTRA:  # 보호된 미리보기: 우회 쿠키를 먼저 심어 다운로드 링크도 통과하게
+        pg.goto(URL + "/?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=" + EXTRA["x-vercel-protection-bypass"])
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
 
@@ -225,6 +229,20 @@ with sync_playwright() as p:
     ok("관리건축물대장 PK" in jt and "4,644 / 4,644" in jt and "70세 이상" in jt, "결합 데이터 표")
     pg.get_by_role("button", name="근거 법령 어떤 조문에 기대나").click()
     ok(pg.locator(".a2-pane table.t tbody tr").count() == 5, "근거 법령 조문 5개")
+    # 질의 도우미 패널
+    pg.get_by_role("button", name="질의 도우미").first.click()
+    ok(pg.locator(".ask-panel").count() == 1 and pg.locator(".ask-chips button").count() == 4, "질의 도우미 패널·예시 칩 4개")
+    pg.locator(".ask-chips button").nth(0).click()
+    pg.wait_for_selector(".ask-a", timeout=40000)
+    at = pg.inner_text(".ask-panel")
+    ok("AI 답변 · 근거는 아래 조회 결과" in at and pg.locator(".ask-ev").count() >= 1, "AI 답변 고지·근거 표")
+    pg.screenshot(path=str(FIG / "ask_check_panel.png"))
+    if pg.locator(".ask-t tbody tr").count():
+        bid0 = pg.locator(".ask-t tbody tr td.mono").first.inner_text()
+        pg.locator(".ask-t tbody tr").first.click()
+        pg.wait_for_timeout(600)
+        ok(bid0 in pg.inner_text("aside.a2-side"), f"조회 건물 → 명부 상세 ({bid0})")
+    pg.get_by_role("button", name="닫기").click()
     mp = ctx.new_page(); mp.goto(URL + "/data/admin_extra.json")
     ok("platPlc" not in mp.content() and "번지" not in mp.content(), "배포 자료에 지번 없음")
     mp.close()
@@ -239,8 +257,10 @@ with sync_playwright() as p:
              ("review", "판정 규칙 표기 2,662종을 어떻게 나눴나", "rules"), ("review", "검증 믿어도 되나", "verify"), ("review", "점수 산식 왜 이 순서인가", "formula"),
              ("review", "데이터·출처 무엇을 결합했나", "data"), ("review", "근거 법령 어떤 조문에 기대나", "law")]
     for w, h in ((1280, 720), (1920, 1080)):
-        c2 = br.new_context(viewport={"width": w, "height": h}, locale="ko-KR")
+        c2 = br.new_context(viewport={"width": w, "height": h}, locale="ko-KR", extra_http_headers=EXTRA)
         q = c2.new_page()
+        if EXTRA:
+            q.goto(URL + "/?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=" + EXTRA["x-vercel-protection-bypass"])
         e2, dashes = [], []
         q.on("pageerror", lambda e: e2.append(str(e)))
         q.goto(URL + "/admin")
