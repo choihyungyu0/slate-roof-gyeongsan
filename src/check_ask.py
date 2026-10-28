@@ -28,7 +28,13 @@ r40 = rules[40]
 
 
 def ask(q, history=None):
-    r = requests.post(BASE + "/api/ask", json={"question": q, "history": history or []}, headers=H, timeout=40)
+    for attempt in range(2):  # 네트워크 끊김·지연은 한 번만 다시 묻는다
+        try:
+            r = requests.post(BASE + "/api/ask", json={"question": q, "history": history or []}, headers=H, timeout=60)
+            break
+        except requests.RequestException:
+            if attempt:
+                raise
     j = r.json()
     return r.status_code, j
 
@@ -71,6 +77,23 @@ case(7, "서울동에 슬레이트 주택 몇 동 있어?", "없는 읍면동이
 case(8, "규칙 R-40이 뭐야?", f"rules.json R-40: {r40['label']} · {r40['note']}",
      lambda a, j: (any(e["result"].get("rule_id") == "R-40" and e["result"].get("note") == r40["note"] for e in j.get("evidence", [])) and r40["label"] in a,
                    "규칙 설명 대조"))
+
+# 9·10: 거리 조건 문장, 그 뒤 순위 질문이 앞 조건을 이어 쓰지 않는지
+hy = [r for r in rows if r["emd"] == "하양읍" and r["rc"] != "혼합"]
+hy5 = [r for r in hy if r["ds"] <= 500]
+s10 = f"하양읍 확실 슬레이트 {len(hy):,}동 중 학교 500m 안이 {len(hy5):,}동({len(hy5) / len(hy) * 100:.1f}%)"
+st, j1 = ask("하양읍에서 학교 500m 안 확실 슬레이트 몇 동?")
+a1 = j1.get("answer", "")
+ok10 = st == 200 and s10 in a1
+CASES.append({"no": 10, "q": "하양읍에서 학교 500m 안 확실 슬레이트 몇 동?", "a": " ".join(a1.split())[:150], "expect": s10, "ok": ok10, "why": "문장 대조"})
+print(("OK  " if ok10 else "FAIL"), 10, "|", " ".join(a1.split())[:110], flush=True)
+st, j2 = ask("2위 집이 왜 2위야?", [{"q": "하양읍에서 학교 500m 안 확실 슬레이트 몇 동?", "a": a1}])
+a2 = j2.get("answer", "")
+gb = [e for e in j2.get("evidence", []) if e["tool"] == "get_building"]
+ok9 = st == 200 and gb and gb[-1]["result"].get("id") == "B043642" and "B043642" in a2 and "93.0" in a2
+CASES.append({"no": 9, "q": "(앞 질문 뒤) 2위 집이 왜 2위야?", "a": " ".join(a2.split())[:150], "expect": "경산 전체 2위 B043642 · 93.0점", "ok": bool(ok9), "why": "get_building 결과"})
+print(("OK  " if ok9 else "FAIL"), 9, "|", " ".join(a2.split())[:110], flush=True)
+CASES.sort(key=lambda c: c["no"])
 
 n = sum(c["ok"] for c in CASES)
 md = ["# 질의 도우미 점검 (" + BASE + ")", "", f"통과 {n} / {len(CASES)}", "", "| # | 질문 | 답 요약 | 기대값 | 일치 |", "|---|---|---|---|---|"]

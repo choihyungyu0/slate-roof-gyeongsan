@@ -40,9 +40,9 @@ export const TOOL_DEFS = [
     parameters: { type: "object", properties: {
       emd: { type: "string", description: "읍면동 이름(예: 하양읍)" }, ri: { type: "string", description: "법정리 이름(예: 금락리)" },
       judgment: { type: "string", enum: ["단독", "혼합", "코드만", "확실"] }, year_max: { type: "integer", description: "사용승인연도 이하" },
-      score_min: { type: "number" }, rank_max: { type: "integer", description: "경산시 전체 순위 이내(예: 95)" },
+      score_min: { type: "number" }, rank_max: { type: "integer", description: "경산시 전체 순위 N위 이내로 거를 때만(예: '점수 상위 95동 중'). 'OO면 상위 5동'은 rank_max가 아니라 limit=5" },
       school_m: { type: "number" }, daycare_m: { type: "number" }, senior_m: { type: "number" },
-      sort: { type: "string", enum: ["score", "year"] }, limit: { type: "integer", description: "보여줄 건수(최대 30, 기본 10)" } } } } },
+      sort: { type: "string", enum: ["score", "year"] }, limit: { type: "integer", description: "점수순으로 보여줄 건수. 'OO면 상위 N동 보여 줘'는 limit=N(최대 30, 기본 10)" } } } } },
   { type: "function", function: { name: "get_building", description: "건물 한 동의 대장 기재, 판정, 걸린 규칙 번호, 항목별 점수와 기본 가중치. id(B+6자리) 또는 rank(경산시 순위) 중 하나.",
     parameters: { type: "object", properties: { id: { type: "string" }, rank: { type: "integer" } } } } },
   { type: "function", function: { name: "get_summary", description: "대장 슬레이트 주택 집계(확실~최대, 코드가 놓친 집). emd를 주면 그 읍면동, 없으면 경산시 전체와 읍면동 표.",
@@ -66,12 +66,23 @@ export async function runTool(name: string, a: Record<string, unknown>): Promise
     const sorted = a.sort === "year" ? [...hit].sort((x, y) => (x.year ?? 9999) - (y.year ?? 9999)) : hit;
     const lim = Math.min(Math.max(Number(a.limit ?? 10), 1), 30);
     const distance = a.school_m != null || a.daycare_m != null || a.senior_m != null;
-    return { conditions: a, scope: "명부 4,644동(위치 연결된 대장 슬레이트 주택) 기준", count: hit.length,
-      ...(distance ? { count_before_distance: base.length, pct_of_before_distance: base.length ? ((hit.length / base.length) * 100).toFixed(1) : null } : {}),
+    const pct = base.length ? ((hit.length / base.length) * 100).toFixed(1) : "0.0";
+    // 답 첫 줄에 그대로 쓰는 문장: "하양읍 확실 슬레이트 364동 중 학교 500m 안이 154동(42.3%)"
+    const kind = a.judgment === "확실" ? "확실 슬레이트" : a.judgment === "혼합" ? "혼합 기재 슬레이트" : a.judgment === "단독" ? "단독 기재 슬레이트" : a.judgment === "코드만" ? "코드만 슬레이트" : "대장 슬레이트";
+    const scopeName = [a.emd ?? "경산시", a.ri, a.rank_max != null ? `점수 상위 ${a.rank_max}위 이내` : null, a.year_max != null ? `${a.year_max}년 이전 사용승인` : null,
+      a.score_min != null ? `${a.score_min}점 이상` : null, kind].filter(Boolean).join(" ");
+    const dist = [a.school_m != null ? `학교 ${a.school_m}m` : null, a.daycare_m != null ? `어린이집 ${a.daycare_m}m` : null, a.senior_m != null ? `경로당 ${a.senior_m}m` : null]
+      .filter(Boolean).join("·");
+    const sentence = distance ? `${scopeName} ${base.length.toLocaleString()}동 중 ${dist} 안이 ${hit.length.toLocaleString()}동(${pct}%)` : `${scopeName} ${hit.length.toLocaleString()}동`;
+    return { conditions: a, scope: "명부 4,644동(위치 연결된 대장 슬레이트 주택) 기준", sentence, count: hit.length,
+      ...(distance ? { count_before_distance: base.length, pct_of_before_distance: pct } : {}),
       top: sorted.slice(0, lim).map(brief) };
   }
   if (name === "get_building") {
-    const r = a.id ? d.rows.find((x) => x.id === String(a.id).toUpperCase()) : d.rows.find((x) => x.pr === Number(a.rank));
+    // 순위가 오면 경산시 전체 순위로 먼저 찾는다. id 자리에 "2"·"2위"가 와도 순위로 본다
+    const idText = String(a.id ?? "").trim().toUpperCase();
+    const rank = a.rank != null ? Number(a.rank) : /^B\d{6}$/.test(idText) ? NaN : Number(idText.replace(/[^0-9]/g, ""));
+    const r = Number.isFinite(rank) && rank > 0 ? d.rows.find((x) => x.pr === rank) : d.rows.find((x) => x.id === idText);
     if (!r) return { error: "해당 건물이 명부에 없습니다" };
     const parts = Object.entries(W).map(([k, [label, w]]) => ({ item: label, weight: w, item_score: Math.round((r[k as keyof Row] as number) * 100) }));
     return { ...brief(r), area_m2: r.area, school_m: r.ds, daycare_m: r.dd, senior_m: r.de, rules_hit: r.rules ? r.rules.split(" ").map((x) => `R-${x}`) : [],
